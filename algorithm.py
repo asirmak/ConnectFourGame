@@ -4,6 +4,8 @@
 class ConnectFour:
     def __init__(self):
         self.board = [["." for _ in range(7)] for _ in range(6)]
+        self.depth = 3
+        self.turns = 0
 
     # Useful functions
     def display_board(self):
@@ -77,7 +79,7 @@ class ConnectFour:
 
         # Depth 3 is instant
         # Depth 5 takes a second to respond
-        if depth == 5:
+        if depth == self.depth:
             return score
 
         # If Yellow (AI) wins
@@ -141,6 +143,8 @@ class ConnectFour:
         # Placing a coin and error handling
 
     def can_place_coin(self, col):
+        if col == -1:
+            return False
         bottom = 5
         while bottom >= 0 and self.board[bottom][col] != ".":
             bottom -= 1
@@ -163,29 +167,65 @@ class ConnectFour:
         else:
             self.board[bottom][col] = "O"
 
+    # Player choice
+    def get_player_input(self, case):
+        cases_dict = {"DIFFICULTY": 1, "COIN": 2}
+        value = cases_dict[case]
+        match value:
+            case 1:
+                player_choice = input("1 Easy | 2 Medium | 3 Hard\n")
+                if player_choice == "":
+                    return 2
+                player_choice = int(player_choice)
+                if player_choice < 1 or player_choice > 3:
+                    return self.get_player_input("DIFFICULTY")
+                return player_choice
+            case 2:
+                player_choice = input(
+                    "It is your turn ! Please choose a row to place your coin in.\n"
+                )
+                if (
+                    player_choice == ""
+                    or int(player_choice) < 1
+                    or int(player_choice) > 7
+                ):
+                    return self.get_player_input("COIN")
+                return int(player_choice) - 1
+            case _:
+                pass
+
+    # Game difficulty
+    def choose_difficulty(self):
+        print("Choose your difficulty. No value will be medium by default.")
+        player_choice = self.get_player_input("DIFFICULTY")
+        self.depth = player_choice + 2
+
+    # Game loop
+    def play_game(self):
+        for _ in range(42):
+            connectFour.display_board()
+            if connectFour.check_win("RED"):
+                print("Player wins !")
+                break
+            if connectFour.check_win("YELLOW"):
+                print("AI wins !")
+                break
+            if connectFour.is_full():
+                print("It is a tie !")
+                break
+            # We decide the player starts playing first
+            if self.turns % 2 == 0:
+                player_choice = -1
+                while connectFour.can_place_coin(player_choice) == False:
+                    player_choice = self.get_player_input("COIN")
+                connectFour.place_coin(player_choice, "RED")
+            else:
+                print("The AI is thinking...")
+                connectFour.ai_play()
+            self.turns += 1
+
 
 if __name__ == "__main__":
     connectFour = ConnectFour()
-    turns = 0
-
-    while True:
-        connectFour.display_board()
-        if connectFour.check_win("RED") == True:
-            print("Player wins !")
-            break
-        if connectFour.check_win("YELLOW") == True:
-            print("AI wins !")
-            break
-        if connectFour.is_full() == True:
-            print("It is a tie !")
-            break
-        # We decide the player starts playing first
-        if turns % 2 == 0:
-            player_choice = int(
-                input("It is your turn ! Please choose a row to place your coin in.\n")
-            )
-            connectFour.place_coin(player_choice, "RED")
-        else:
-            print("The AI is thinking...")
-            connectFour.ai_play()
-        turns += 1
+    connectFour.choose_difficulty()
+    connectFour.play_game()
