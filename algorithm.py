@@ -1,8 +1,13 @@
 # The board is 6 height x 7 width
 
+from camera import Camera
+from robot import Robot
+
 
 class ConnectFour:
     def __init__(self):
+        self.camera = Camera()
+        self.robot = Robot()
         self.board = [["." for _ in range(7)] for _ in range(6)]
         self.depth = 3
         self.turns = 0
@@ -137,6 +142,8 @@ class ConnectFour:
                     best_col = col
                     best_val = move_val
 
+        # Best move has been calculated, we ask the robot to place the coin
+        # self.robot.place_coin(best_col)
         self.place_coin(best_col, "YELLOW")
         # Return a value in the future for Robot
 
@@ -220,6 +227,8 @@ class ConnectFour:
                     player_choice = self.get_player_input("COIN")
                 connectFour.place_coin(player_choice, "RED")
             else:
+                # Updating the board for the robot
+                # self.board = self.camera.get_board()
                 print("The AI is thinking...")
                 connectFour.ai_play()
             self.turns += 1
