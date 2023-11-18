@@ -29,7 +29,9 @@ class Robot:
         )
 
         # Move robot to its default position
-        self.__robot.arm.move_to_home_pose()
+        self.__executeRobotAction(
+            self.__robot.arm.move_to_home_pose()
+        )
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __executeRobotAction(self, action, *args):
@@ -50,9 +52,13 @@ class Robot:
             self.__robot.arm.move_pose, pos
         )
     
+    # Grab the piece at the specified index
+    # TODO Change the behaviour of this function so that no outside parameter is required
     def grabPiece(self, piece_index):
         self.__moveToPos(self.__first_piece_pos if piece_index==0 else self.__second_piece_pos)
 
+    # Move pieces in the belt
+    # TODO Change this function to private, this function should be only managed internally
     def movePieces(self):
         self.__executeRobotAction(
             self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, ConveyorDirection.FORWARD
@@ -62,6 +68,7 @@ class Robot:
             self.__robot.conveyor.stop_conveyor, self.__conveyor_id
         )
 
+    # Function to end the control instance, must be called at the end
     def endRobot(self):
         self.__robot.end()
 
