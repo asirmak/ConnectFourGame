@@ -1,5 +1,6 @@
 from pyniryo2 import *
 import time
+import traceback
 
 class Robot:
     # Constant variables
@@ -13,25 +14,29 @@ class Robot:
         except:
             raise ConnectionError("Connection to robot failed!")
         
-        # Calibrate the robot
-        self.__executeRobotAction(
-            self.__robot.arm.calibrate_auto
-        )
+        try:
+            # Calibrate the robot
+            self.__executeRobotAction(
+                self.__robot.arm.calibrate_auto
+            )
 
-        # Detect the currently attached tool
-        self.__executeRobotAction(
-            self.__robot.tool.update_tool
-        )
+            # Detect the currently attached tool
+            self.__executeRobotAction(
+                self.__robot.tool.update_tool
+            )
 
-        # Set up the conveyer belt
-        self.__conveyor_id = self.__executeRobotAction(
-            self.__robot.conveyor.set_conveyor
-        )
+            # Set up the conveyer belt
+            self.__conveyor_id = self.__executeRobotAction(
+                self.__robot.conveyor.set_conveyor
+            )
 
-        # Move robot to its default position
-        self.__executeRobotAction(
-            self.__robot.arm.move_to_home_pose()
-        )
+            # Move robot to its default position
+            self.__executeRobotAction(
+                self.__robot.arm.move_to_home_pose
+            )
+        except:
+            self.endRobot()
+            raise
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __executeRobotAction(self, action, *args):
@@ -41,6 +46,9 @@ class Robot:
             try:
                 result = action(*args)
                 action_retry = False
+            except TypeError as e:
+                print("You did a coding error, do not pass function call instead pass a function reference")
+                raise
             except Exception as e:
                 print(e)
                 continue
@@ -101,7 +109,7 @@ if __name__ == "__main__":
     except Exception as e:
         print("Robot calibration functions failed!")
         print("Please make sure that the area around the robot is clear")
-        print(e)
+        traceback.print_exc(e)
         sys.exit(1)
 
     robot_ethernet.grabPiece(1)
