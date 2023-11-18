@@ -2,8 +2,9 @@ from pyniryo2 import *
 import time
 
 class Robot:
-    __first_piece_pos = [0.14, 0.0, 0.152, 0.0, 1.55, 0]
-    __second_piece_pos = [0.2, 0.0, 0.148, 0.0, 1.55, 0]
+    # Constant variables
+    __first_piece_pos = [0.14, 0.0, 0.152, 0.0, 1.55, 0] # location of the piece at index 0 on the belt
+    __second_piece_pos = [0.2, 0.0, 0.148, 0.0, 1.55, 0] # location of the piece at index 1 on the belt
 
     def __init__(self, robot_ip: str = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
         # Connect to robot
@@ -43,13 +44,14 @@ class Robot:
                 continue
         return result
 
+    # Move robot to specified position
     def __moveToPos(self, pos):
-        self.__robot.arm.move_pose(pos)
+        self.__executeRobotAction(
+            self.__robot.arm.move_pose, pos
+        )
     
     def grabPiece(self, piece_index):
-        self.__executeRobotAction(
-            self.__moveToPos, self.__first_piece_pos if piece_index==0 else self.__second_piece_pos
-        )
+        self.__moveToPos(self.__first_piece_pos if piece_index==0 else self.__second_piece_pos)
 
     def movePieces(self):
         self.__executeRobotAction(
