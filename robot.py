@@ -56,6 +56,10 @@ class Robot:
     # TODO Change the behaviour of this function so that no outside parameter is required
     def grabPiece(self, piece_index):
         self.__moveToPos(self.__first_piece_pos if piece_index==0 else self.__second_piece_pos)
+        self.__executeRobotAction(
+            self.__robot.tool.grasp_with_tool
+        )
+        # TODO raise the piece
 
     # Move pieces in the belt
     # TODO Change this function to private, this function should be only managed internally
