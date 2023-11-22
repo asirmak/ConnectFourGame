@@ -32,9 +32,7 @@ class Robot:
             )
 
             # Move robot to its default position
-            self.__executeRobotAction(
-                self.__robot.arm.move_to_home_pose
-            )
+            self.__moveToHome()
         except:
             # If any error happens during the calibration, end the robot so the code does not hang
             self.endRobot()
@@ -91,11 +89,13 @@ class Robot:
                 input("Press enter to continue for the next piece...")
                 currentMoveCount += 1
 
+                # Move to home after piece is placed
+                self.__moveToHome()
+
                 # Move the belt since 2 pieces were placed
                 if currentMoveCount == 2:
                     print("Current stack is full moving pieces to the left")
                     currentMoveCount = 0
-                    self.__moveToHome()
                     self.__movePieces(ConveyorDirection.BACKWARD)
             
             self.__beltSetUp = True
