@@ -40,6 +40,7 @@ class Robot:
             raise
 
         self.__currentPiece = 0
+        self.__beltSetUp = False
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __executeRobotAction(self, action, *args):
@@ -65,28 +66,29 @@ class Robot:
             self.__robot.arm.move_pose, pos
         )
 
-    # TODO maybe try to store the belt state and with the force argument force tp set up the belt again
+    # Belt set up function to place the piece on the belt before the game starts
     def setUpBelt(self, piece_count = 21, force = False):
-        currentMoveCount = 0
-        while piece_count:
-            piece_count -= 1
-            
-            # Determine which place to show to user
-            index = self.__currentPiece % 2
-            self.__currentPiece += 1
+        if not self.__beltSetUp or force:
+            currentMoveCount = 0
+            while piece_count:
+                piece_count -= 1
+                
+                # Determine which place to show to user
+                index = self.__currentPiece % 2
+                self.__currentPiece += 1
 
-            # Move the robot arm to that position and wait for user input
-            self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
-            input("Press enter to continue for the next piece...")
-            currentMoveCount += 1
+                # Move the robot arm to that position and wait for user input
+                self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
+                input("Press enter to continue for the next piece...")
+                currentMoveCount += 1
 
-            # Move the belt since 2 pieces were placed
-            if currentMoveCount == 2:
-                currentMoveCount = 0
-                self.__executeRobotAction(
-                    self.__robot.arm.move_to_home_pose
-                )
-                self.__movePieces(ConveyorDirection.BACKWARD)
+                # Move the belt since 2 pieces were placed
+                if currentMoveCount == 2:
+                    currentMoveCount = 0
+                    self.__executeRobotAction(
+                        self.__robot.arm.move_to_home_pose
+                    )
+                    self.__movePieces(ConveyorDirection.BACKWARD)
 
     
     # Grab the piece at the specified index
@@ -130,6 +132,7 @@ if __name__ == "__main__":
 
         args = parser.parse_args()
 
+        robot_ethernet = None
         try:
             robot_ethernet = Robot(args.ip)
         except ConnectionError as e:
@@ -144,9 +147,9 @@ if __name__ == "__main__":
             sys.exit(1)
 
         robot_ethernet.setUpBelt()
-
-        robot_ethernet.endRobot()
     except KeyboardInterrupt:
-        robot_ethernet.endRobot()
         print("\nProgram ended with keyboard interrupt")
         sys.exit(130)
+    finally:
+        if robot_ethernet is not None:
+            robot_ethernet.endRobot()
