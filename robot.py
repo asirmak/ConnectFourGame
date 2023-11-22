@@ -1,4 +1,5 @@
 from pyniryo2 import *
+from roslibpy.core import RosTimeoutError
 import time
 import traceback
 
@@ -50,15 +51,21 @@ class Robot:
             try:
                 result = action(*args)
                 action_retry = False
-            except TypeError as e:
+            except TypeError:
                 print("You did a coding error, do not pass function call instead pass a function reference")
                 raise
-            except Exception as e:
-                # No need to print traceback this is probably RosTimeout bug
-                # TODO try to handle RosTimeout error only if possible
+            except RosTimeoutError as e:
+                # robot internal bug safe to ignore
+                # TODO in the future maybe add a retry limit
                 print(e)
                 continue
         return result
+
+    # Function for moving back to the home pose
+    def __moveToHome(self):
+        self.__executeRobotAction(
+            self.__robot.arm.move_to_home_pose
+        )
 
     # Move robot to specified position
     def __moveToPos(self, pos):
@@ -71,10 +78,12 @@ class Robot:
         if not self.__beltSetUp or force:
             currentMoveCount = 0
             while piece_count:
+                print(f"Currently setting up piece {self.__currentPiece}")
                 piece_count -= 1
                 
                 # Determine which place to show to user
                 index = self.__currentPiece % 2
+                print(f"The piece will be placed on position {index}")
                 self.__currentPiece += 1
 
                 # Move the robot arm to that position and wait for user input
@@ -84,11 +93,12 @@ class Robot:
 
                 # Move the belt since 2 pieces were placed
                 if currentMoveCount == 2:
+                    print("Current stack is full moving pieces to the left")
                     currentMoveCount = 0
-                    self.__executeRobotAction(
-                        self.__robot.arm.move_to_home_pose
-                    )
+                    self.__moveToHome()
                     self.__movePieces(ConveyorDirection.BACKWARD)
+            
+            self.__beltSetUp = True
 
     
     # Grab the piece at the specified index
@@ -101,7 +111,6 @@ class Robot:
         # TODO raise the piece
 
     # Move pieces in the belt
-    # TODO Change this function to private, this function should be only managed internally
     def __movePieces(self, direction: ConveyorDirection):
         self.__executeRobotAction(
             self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, direction
