@@ -65,6 +65,7 @@ class Robot:
             self.__robot.arm.move_pose, pos
         )
 
+    # TODO maybe try to store the belt state and with the force argument force tp set up the belt again
     def setUpBelt(self, piece_count = 21, force = False):
         currentMoveCount = 0
         while piece_count:
