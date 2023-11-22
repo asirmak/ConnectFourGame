@@ -73,6 +73,7 @@ class Robot:
             
             # Determine which place to show to user
             index = self.__currentPiece % 2
+            self.__currentPiece += 1
 
             # Move the robot arm to that position and wait for user input
             self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
