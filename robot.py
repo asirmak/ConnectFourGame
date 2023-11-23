@@ -5,8 +5,16 @@ import traceback
 
 class Robot:
     # Constant variables
-    __first_piece_pos = [0.14, 0.0, 0.152, 0.0, 1.55, 0] # location of the piece at index 0 on the belt
-    __second_piece_pos = [0.2, 0.0, 0.148, 0.0, 1.55, 0] # location of the piece at index 1 on the belt
+
+    # Positions of certain objects
+    __first_piece_pos = PoseObject(
+        x=0.14, y=0.0, z=0.152,
+        roll=0.0, pitch=1.55, yaw=0
+    ) # location of the piece at index 0 on the belt
+    __second_piece_pos = PoseObject(
+        x=0.2, y=0.0, z=0.148,
+        roll=0.0, pitch=1.55, yaw=0
+    ) # location of the piece at index 1 on the belt
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
         # Connect to robot
