@@ -1,8 +1,9 @@
 from pyniryo2 import *
+from pyniryo import uncompress_image
 from roslibpy.core import RosTimeoutError
 import time
 import traceback
-
+import cv2
 class Robot:
     # Constant variables
 
@@ -79,6 +80,15 @@ class Robot:
             self.__robot.arm.move_pose, pos
         )
 
+    def takePicture(self):
+        # robot api is trash so dont use this
+        # self.__robot.vision.get_camera_intrinsics()
+        # img = self.__robot.vision.get_img_compressed()
+        # img = uncompress_image(img)
+        # return img
+        # TODO implement using USB camera
+        pass
+    
     # Belt set up function to place the piece on the belt before the game starts
     def setUpBelt(self, piece_count = 21, force = False):
         if not self.__beltSetUp or force:
@@ -123,7 +133,7 @@ class Robot:
         self.__executeRobotAction(
             self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, direction
         )
-        time.sleep(3)
+        time.sleep(2.5)
         self.__executeRobotAction(
             self.__robot.conveyor.stop_conveyor, self.__conveyor_id
         )
@@ -162,7 +172,7 @@ if __name__ == "__main__":
             print("Please make sure that the area around the robot is clear")
             traceback.print_exc(e)
             sys.exit(1)
-
+        
         robot_ethernet.setUpBelt()
     except KeyboardInterrupt:
         print("\nProgram ended with keyboard interrupt")
