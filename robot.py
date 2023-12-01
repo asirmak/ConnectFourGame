@@ -21,6 +21,10 @@ class Robot:
         x=0.2, y=0.0, z=0.148,
         roll=0.0, pitch=1.55, yaw=0
     ) # location of the piece at index 1 on the belt
+    __drop_pos = PoseObject(
+        x=-0.022, y=0.2, z=0.2,
+        roll=0.013, pitch=0.023, yaw=1.653
+    )
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
         # Connect to robot
@@ -64,6 +68,7 @@ class Robot:
             raise
 
         self.__currentPiece = 0
+        self.__currentStackCount = 0
         self.__beltSetUp = False
 
     # work around ros timing bug where the robot fails sometimes for no reason
@@ -101,7 +106,7 @@ class Robot:
     # Belt set up function to place the piece on the belt before the game starts
     def setUpBelt(self, piece_count = 21, force = False):
         if not self.__beltSetUp or force:
-            currentMoveCount = 0
+            currentStackCount = 0
             while piece_count:
                 self.__logger.info(f"Currently setting up piece {self.__currentPiece}")
                 piece_count -= 1
@@ -115,28 +120,41 @@ class Robot:
                 self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
                 self.__logger.info("Press enter to continue for the next piece...")
                 input()
-                currentMoveCount += 1
+                currentStackCount += 1
 
                 # Move to home after piece is placed
                 self.__moveToHome()
 
                 # Move the belt since 2 pieces were placed
-                if currentMoveCount == 2:
+                if currentStackCount == 2 and piece_count != 0:
                     self.__logger.info("Piece stack full moving pieces to the left")
-                    currentMoveCount = 0
+                    currentStackCount = 0
                     self.__movePiecesOnBelt(ConveyorDirection.BACKWARD)
             
+            self.__currentStackCount = currentStackCount
             self.__beltSetUp = True
 
     
     # Grab the piece at the specified index
     # TODO Change the behaviour of this function so that no outside parameter is required
-    def grabPiece(self, piece_index):
-        self.__moveToPos(self.__first_piece_pos if piece_index==0 else self.__second_piece_pos)
+    def grabPiece(self):
+        self.__moveToPos(self.__first_piece_pos if self.__currentStackCount==1 else self.__second_piece_pos)
         self.__executeRobotAction(
             self.__robot.tool.grasp_with_tool
         )
-        # TODO raise the piece
+        self.__moveToHome()
+        self.__currentStackCount -= 1
+
+        if self.__currentStackCount == 0:
+            self.__currentStackCount = 2
+            self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
+
+    def dropPiece(self):
+        self.__moveToPos(self.__drop_pos)
+        self.__executeRobotAction(
+            self.__robot.tool.release_with_tool
+        )
+        self.__moveToHome()
 
     # Move pieces in the belt
     def __movePiecesOnBelt(self, direction: ConveyorDirection):
@@ -154,17 +172,21 @@ class Robot:
 
 
 # Test function for robot
-def __robotTest(ip):
+def __robotTest(args):
     test_logger = CreateLogger("ROBOT_TEST")
     try:
         robot_ethernet = None
         try:
-            robot_ethernet = Robot(ip)
+            robot_ethernet = Robot(args.ip)
         except Exception:
             test_logger.exception("Robot init failed!")
             sys.exit(1)
-        
-        robot_ethernet.setUpBelt()
+        original_piece = args.piece
+        robot_ethernet.setUpBelt(args.piece)
+        while original_piece:
+            original_piece -= 1
+            robot_ethernet.grabPiece()
+            robot_ethernet.dropPiece()
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
@@ -186,6 +208,13 @@ if __name__ == "__main__":
         default="169.254.200.200"
     )
 
+    parser.add_argument(
+        "--piece",
+        type=int,
+        help="game piece count",
+        default=21
+    )
+
     args = parser.parse_args()
 
-    __robotTest(args.ip)
+    __robotTest(args)
