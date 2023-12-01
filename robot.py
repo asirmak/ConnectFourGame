@@ -132,30 +132,13 @@ class Robot:
     def endRobot(self):
         self.__robot.end()
 
-# TODO in the future this should be unittest
-if __name__ == "__main__":
+def __robotTest(ip):
     try:
-        import sys
-        import argparse
-
-        parser = argparse.ArgumentParser(description="Run unit test of the robot")
-
-        # Options ip argument for connecting to other robots, such as the simulation
-        parser.add_argument(
-            "--ip", type=str,
-            help="ip addr for robot, defaults to ethernet ip",
-            default="169.254.200.200"
-        )
-
-        args = parser.parse_args()
-
         robot_ethernet = None
         try:
-            robot_ethernet = Robot(args.ip)
+            robot_ethernet = Robot(ip)
         except ConnectionError as e:
-            print(e)
-            print("An error occured during the creation of the robot object!")
-            print("Check if you have entered the correct ip addr")
+            
             sys.exit(1)
         except Exception as e:
             print("Robot calibration functions failed!")
@@ -170,3 +153,21 @@ if __name__ == "__main__":
     finally:
         if robot_ethernet is not None:
             robot_ethernet.endRobot()
+
+if __name__ == "__main__":
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run tests for the robot")
+
+    # Options ip argument for connecting to other robots, such as the simulation
+    parser.add_argument(
+        "--ip", 
+        type=str,
+        help="ip addr for robot, defaults to ethernet ip",
+        default="169.254.200.200"
+    )
+
+    args = parser.parse_args()
+
+    __robotTest(args.ip)
