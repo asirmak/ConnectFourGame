@@ -1,5 +1,4 @@
 from pyniryo2 import *
-from pyniryo import uncompress_image
 from roslibpy.core import RosTimeoutError
 import time
 import traceback
@@ -79,15 +78,6 @@ class Robot:
         self.__executeRobotAction(
             self.__robot.arm.move_pose, pos
         )
-
-    def takePicture(self):
-        # robot api is trash so dont use this
-        # self.__robot.vision.get_camera_intrinsics()
-        # img = self.__robot.vision.get_img_compressed()
-        # img = uncompress_image(img)
-        # return img
-        # TODO implement using USB camera
-        pass
     
     # Belt set up function to place the piece on the belt before the game starts
     def setUpBelt(self, piece_count = 21, force = False):
