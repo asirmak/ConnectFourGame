@@ -70,6 +70,76 @@ class Robot:
         self.__currentPiece = 0
         self.__currentStackCount = 0
         self.__beltSetUp = False
+    
+    # Belt set up function to place the piece on the belt before the game starts
+    # TODO force flag is kinda useless right now work on it later
+    def setUpBelt(self, piece_count = 21, force = False):
+        if not self.__beltSetUp or force:
+            currentStackCount = 0
+            while piece_count:
+                self.__logger.info(f"Currently setting up piece {self.__currentPiece}")
+                piece_count -= 1
+                
+                # Determine which place to show to user
+                index = self.__currentPiece % 2
+                self.__logger.info(f"The piece will be placed on position {index}")
+                self.__currentPiece += 1
+
+                # Move the robot arm to that position and wait for user input
+                self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
+                self.__logger.info("Press enter to continue for the next piece...")
+                input()
+                currentStackCount += 1
+
+                # Move to home after piece is placed
+                self.__moveToHome()
+
+                # Move the belt since 2 pieces were placed
+                if currentStackCount == 2 and piece_count != 0:
+                    self.__logger.info("Piece stack full moving pieces to the left")
+                    currentStackCount = 0
+                    self.__movePiecesOnBelt(ConveyorDirection.BACKWARD)
+            
+            self.__currentStackCount = currentStackCount
+            self.__beltSetUp = True
+
+    
+    # Grab the next piece, which piece to grab is calculated by itself
+    def grabPiece(self):
+        self.__moveToPos(self.__first_piece_pos if self.__currentStackCount==1 else self.__second_piece_pos)
+        self.__executeRobotAction(
+            self.__robot.tool.grasp_with_tool
+        )
+        self.__moveToHome()
+        self.__currentStackCount -= 1
+
+        # TODO maybe do this in a separate thread later to not block the robot
+        if self.__currentStackCount == 0:
+            self.__currentStackCount = 2
+            self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
+
+    # Take the piece and drop it next to the robot
+    # TODO temp function remove this later
+    def dropPiece(self):
+        self.__moveToPos(self.__drop_pos)
+        self.__executeRobotAction(
+            self.__robot.tool.release_with_tool
+        )
+        self.__moveToHome()
+
+    # Move pieces on the belt
+    def __movePiecesOnBelt(self, direction: ConveyorDirection):
+        self.__executeRobotAction(
+            self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, direction
+        )
+        time.sleep(2.5)
+        self.__executeRobotAction(
+            self.__robot.conveyor.stop_conveyor, self.__conveyor_id
+        )
+
+    # Function to end the control instance, must be called at the end
+    def endRobot(self):
+        self.__robot.end()
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __executeRobotAction(self, action, *args):
@@ -102,73 +172,6 @@ class Robot:
             self.__robot.arm.move_pose, pos
         )
         self.__logger.info(f"Moved to position {pos}")
-    
-    # Belt set up function to place the piece on the belt before the game starts
-    def setUpBelt(self, piece_count = 21, force = False):
-        if not self.__beltSetUp or force:
-            currentStackCount = 0
-            while piece_count:
-                self.__logger.info(f"Currently setting up piece {self.__currentPiece}")
-                piece_count -= 1
-                
-                # Determine which place to show to user
-                index = self.__currentPiece % 2
-                self.__logger.info(f"The piece will be placed on position {index}")
-                self.__currentPiece += 1
-
-                # Move the robot arm to that position and wait for user input
-                self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
-                self.__logger.info("Press enter to continue for the next piece...")
-                input()
-                currentStackCount += 1
-
-                # Move to home after piece is placed
-                self.__moveToHome()
-
-                # Move the belt since 2 pieces were placed
-                if currentStackCount == 2 and piece_count != 0:
-                    self.__logger.info("Piece stack full moving pieces to the left")
-                    currentStackCount = 0
-                    self.__movePiecesOnBelt(ConveyorDirection.BACKWARD)
-            
-            self.__currentStackCount = currentStackCount
-            self.__beltSetUp = True
-
-    
-    # Grab the piece at the specified index
-    # TODO Change the behaviour of this function so that no outside parameter is required
-    def grabPiece(self):
-        self.__moveToPos(self.__first_piece_pos if self.__currentStackCount==1 else self.__second_piece_pos)
-        self.__executeRobotAction(
-            self.__robot.tool.grasp_with_tool
-        )
-        self.__moveToHome()
-        self.__currentStackCount -= 1
-
-        if self.__currentStackCount == 0:
-            self.__currentStackCount = 2
-            self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
-
-    def dropPiece(self):
-        self.__moveToPos(self.__drop_pos)
-        self.__executeRobotAction(
-            self.__robot.tool.release_with_tool
-        )
-        self.__moveToHome()
-
-    # Move pieces in the belt
-    def __movePiecesOnBelt(self, direction: ConveyorDirection):
-        self.__executeRobotAction(
-            self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, direction
-        )
-        time.sleep(2.5)
-        self.__executeRobotAction(
-            self.__robot.conveyor.stop_conveyor, self.__conveyor_id
-        )
-
-    # Function to end the control instance, must be called at the end
-    def endRobot(self):
-        self.__robot.end()
 
 
 # Test function for robot
