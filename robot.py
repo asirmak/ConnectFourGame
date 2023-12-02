@@ -67,7 +67,7 @@ class Robot:
             self.endRobot()
             raise
 
-        self.__currentPiece = 0
+        self.__currentPieceCount = 0
         self.__currentStackCount = 0
         self.__beltSetUp = False
     
@@ -77,13 +77,13 @@ class Robot:
         if not self.__beltSetUp or force:
             currentStackCount = 0
             while piece_count:
-                self.__logger.info(f"Currently setting up piece {self.__currentPiece}")
+                self.__logger.info(f"Currently setting up piece {self.__currentPieceCount}")
                 piece_count -= 1
                 
                 # Determine which place to show to user
-                index = self.__currentPiece % 2
+                index = self.__currentPieceCount % 2
                 self.__logger.info(f"The piece will be placed on position {index}")
-                self.__currentPiece += 1
+                self.__currentPieceCount += 1
 
                 # Move the robot arm to that position and wait for user input
                 self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
@@ -114,7 +114,7 @@ class Robot:
         self.__currentStackCount -= 1
 
         # TODO maybe do this in a separate thread later to not block the robot
-        if self.__currentStackCount == 0:
+        if self.__currentStackCount == 0 and self.__currentPieceCount != 0:
             self.__currentStackCount = 2
             self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
 
