@@ -2,8 +2,7 @@ from pyniryo2 import *
 from roslibpy.core import RosTimeoutError
 from src.utils.Logging import CreateLogger
 import time
-import traceback
-import cv2
+from threading import Thread
 class Robot:
     # Constant variables
 
