@@ -13,16 +13,20 @@ class Robot:
 
     # Positions of certain objects
     __first_piece_pos = PoseObject(
-        x=0.14, y=0.0, z=0.152,
+        x=0.125, y=0.0, z=0.152,
         roll=0.0, pitch=1.55, yaw=0
     ) # location of the piece at index 0 on the belt
     __second_piece_pos = PoseObject(
-        x=0.2, y=0.0, z=0.148,
+        x=0.186, y=0.0, z=0.15,
         roll=0.0, pitch=1.55, yaw=0
     ) # location of the piece at index 1 on the belt
     __drop_pos = PoseObject(
         x=-0.022, y=0.2, z=0.2,
         roll=0.013, pitch=0.023, yaw=1.653
+    )
+    __better_home_pos = PoseObject(
+        x=0.14, y=0, z=0.203,
+        roll=0, pitch=0.759, yaw=0
     )
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
