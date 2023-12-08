@@ -69,7 +69,8 @@ class Robot:
             # If any error happens during the calibration, end the robot so the code does not hang
             self.endRobot()
             raise
-
+        
+        self.__beltThread = Thread()
         self.__currentPieceCount = 0
         self.__currentStackCount = 0
         self.__beltSetUp = False
@@ -109,6 +110,9 @@ class Robot:
     
     # Grab the next piece, which piece to grab is calculated by itself
     def grabPiece(self):
+        if self.__beltThread.is_alive():
+            self.__beltThread.join()
+        
         self.__moveToPos(self.__first_piece_pos if self.__currentStackCount==1 else self.__second_piece_pos)
         self.__executeRobotAction(
             self.__robot.tool.grasp_with_tool
@@ -117,9 +121,12 @@ class Robot:
         self.__currentStackCount -= 1
 
         # TODO maybe do this in a separate thread later to not block the robot
+        
         if self.__currentStackCount == 0 and self.__currentPieceCount != 0:
             self.__currentStackCount = 2
-            self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
+            self.__beltThread = Thread(target=self.__movePiecesOnBelt, args=(ConveyorDirection.FORWARD,))
+            self.__beltThread.start()
+            # self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
 
     # Take the piece and drop it next to the robot
     # TODO temp function remove this later
@@ -164,9 +171,7 @@ class Robot:
 
     # Function for moving back to the home pose
     def __moveToHome(self):
-        self.__executeRobotAction(
-            self.__robot.arm.move_to_home_pose
-        )
+        self.__moveToPos(self.__better_home_pos)
         self.__logger.info("Moved to home position")
 
     # Move robot to specified position
@@ -187,12 +192,14 @@ def __robotTest(args):
         except Exception:
             test_logger.exception("Robot init failed!")
             sys.exit(1)
+        
         original_piece = args.piece
         robot_ethernet.setUpBelt(args.piece)
         while original_piece:
             original_piece -= 1
             robot_ethernet.grabPiece()
             robot_ethernet.dropPiece()
+        
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
