@@ -127,6 +127,10 @@ class Robot:
     
     # Grab the next piece, which piece to grab is calculated by itself
     def grabPiece(self):
+        # If there are no pieces left on the belt don't do anything
+        if self.__currentPieceCount == 0:
+            return
+        
         # Wait if beltThread did not finish the task
         if self.__beltThread.is_alive():
             self.__beltThread.join()
