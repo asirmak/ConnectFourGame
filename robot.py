@@ -3,6 +3,7 @@ from roslibpy.core import RosTimeoutError
 from src.utils.Logging import CreateLogger
 import time
 from threading import Thread
+
 class Robot:
     # Constant variables
 
@@ -12,21 +13,30 @@ class Robot:
     )
 
     # Positions of certain objects
-    __first_piece_pos = PoseObject(
-        x=0.125, y=0.0, z=0.152,
-        roll=0.0, pitch=1.55, yaw=0
-    ) # location of the piece at index 0 on the belt
-    __second_piece_pos = PoseObject(
-        x=0.186, y=0.0, z=0.15,
-        roll=0.0, pitch=1.55, yaw=0
-    ) # location of the piece at index 1 on the belt
-    __drop_pos = PoseObject(
-        x=-0.022, y=0.2, z=0.2,
-        roll=0.013, pitch=0.023, yaw=1.653
-    )
+
+    # Better pos for robot when it should stay idle, got the pos from NiryoStudio
     __better_home_pos = PoseObject(
         x=0.14, y=0, z=0.203,
         roll=0, pitch=0.759, yaw=0
+    )
+
+    # Location of the piece at index 0 on the belt (robot side)
+    __index0_pos = PoseObject(
+        x=0.125, y=0.0, z=0.152,
+        roll=0.0, pitch=1.55, yaw=0
+    )
+
+    # Location of the piece at index 1 on the belt (far side)
+    __index1_pos = PoseObject(
+        x=0.186, y=0.0, z=0.15,
+        roll=0.0, pitch=1.55, yaw=0
+    )
+
+    # TODO Change this to actual game board positions later
+    # Dummy position where the robot can drop the pieces by its side
+    __drop_pos = PoseObject(
+        x=-0.022, y=0.2, z=0.2,
+        roll=0.013, pitch=0.023, yaw=1.653
     )
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
@@ -70,63 +80,69 @@ class Robot:
             self.endRobot()
             raise
         
+        # A thread which can manage belt actions async
         self.__beltThread = Thread()
+
+        # Total number of pieces currently on the belt
         self.__currentPieceCount = 0
+
+        # Piece of left on the current stack can be (0, 1, 2)
         self.__currentStackCount = 0
-        self.__beltSetUp = False
+
+    # Returns the current total left pieces on the belt
+    def getCurrentPieceCount():
+        return self.__currentPieceCount
+    
+    # Returns the current count of piece left on the stack
+    def getCurrentPieceStackCount():
+        return self.__currentStackCount
     
     # Belt set up function to place the piece on the belt before the game starts
-    # TODO force flag is kinda useless right now work on it later
-    def setUpBelt(self, piece_count = 21, force = False):
-        if not self.__beltSetUp or force:
-            currentStackCount = 0
-            while piece_count:
-                self.__logger.info(f"Currently setting up piece {self.__currentPieceCount}")
-                piece_count -= 1
-                
-                # Determine which place to show to user
-                index = self.__currentPieceCount % 2
-                self.__logger.info(f"The piece will be placed on position {index}")
-                self.__currentPieceCount += 1
+    def setUpBelt(self, piece_count=21, wait_time=0):
+        while self.__currentPieceCount != piece_count:
+            self.__logger.info(f"Currently setting up piece {self.__currentPieceCount}")
+            
+            # Determine which place to show to the user
+            self.__logger.info(f"This piece will be placed on position {self.__currentStackCount + 1}")
+            self.__currentPieceCount += 1
 
-                # Move the robot arm to that position and wait for user input
-                self.__moveToPos(self.__first_piece_pos if index==0 else self.__second_piece_pos)
+            # Move the robot arm to that position and wait for user input
+            self.__moveToPos(self.__index0_pos if self.__currentStackCount==0 else self.__index1_pos)
+            if wait_time == 0:
                 self.__logger.info("Press enter to continue for the next piece...")
                 input()
-                currentStackCount += 1
+            else:
+                self.__logger.info(f"Waiting {wait_time} seconds for piece to be placed")
+                time.sleep(wait_time)
+            self.__currentStackCount += 1
 
-                # Move to home after piece is placed
-                self.__moveToHome()
+            # Move to home after piece is placed
+            self.__moveToHome()
 
-                # Move the belt since 2 pieces were placed
-                if currentStackCount == 2 and piece_count != 0:
-                    self.__logger.info("Piece stack full moving pieces to the left")
-                    currentStackCount = 0
-                    self.__movePiecesOnBelt(ConveyorDirection.BACKWARD)
-            
-            self.__currentStackCount = currentStackCount
-            self.__beltSetUp = True
-
+            # Move the belt since 2 pieces were placed
+            if self.__currentStackCount == 2 and (self.__currentPieceCount != piece_count):
+                self.__logger.info("Piece stack full moving pieces to the left")
+                self.__currentStackCount = 0
+                self.__movePiecesOnBelt(ConveyorDirection.BACKWARD)
     
     # Grab the next piece, which piece to grab is calculated by itself
     def grabPiece(self):
+        # Wait if beltThread did not finish the task
         if self.__beltThread.is_alive():
             self.__beltThread.join()
         
-        self.__moveToPos(self.__first_piece_pos if self.__currentStackCount==1 else self.__second_piece_pos)
+        self.__moveToPos(self.__index0_pos if self.__currentStackCount==1 else self.__index1_pos)
         self.__executeRobotAction(
             self.__robot.tool.grasp_with_tool
         )
         self.__moveToHome()
         self.__currentStackCount -= 1
-
-        # TODO maybe do this in a separate thread later to not block the robot
         
+        # If stack is empty then move the new stones on the belt async
         if self.__currentStackCount == 0 and self.__currentPieceCount != 0:
             self.__currentStackCount = 2
             self.__beltThread = Thread(target=self.__movePiecesOnBelt, args=(ConveyorDirection.FORWARD,))
             self.__beltThread.start()
-            # self.__movePiecesOnBelt(ConveyorDirection.FORWARD)
 
     # Take the piece and drop it next to the robot
     # TODO temp function remove this later
