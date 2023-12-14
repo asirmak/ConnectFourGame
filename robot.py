@@ -1,6 +1,6 @@
 from pyniryo2 import *
 from roslibpy.core import RosTimeoutError
-from src.utils.Logging import CreateLogger
+from src.utils.Logging import create_logger
 import time
 from threading import Thread
 
@@ -8,7 +8,7 @@ class Robot:
     # Constant variables
 
     # Logger for the robot
-    __logger = CreateLogger(
+    __logger = create_logger(
         name="ROBOT"
     )
 
@@ -49,130 +49,130 @@ class Robot:
         
         try:
             # Calibrate the robot
-            self.__executeRobotAction(
+            self.__execute_robot_action(
                 self.__robot.arm.calibrate_auto
             )
             self.__logger.info("Arm is calibrated and ready to use")
 
             # Detect the currently attached tool
-            self.__executeRobotAction(
+            self.__execute_robot_action(
                 self.__robot.tool.update_tool
             )
-            current_tool = self.__executeRobotAction(
+            current_tool = self.__execute_robot_action(
                 self.__robot.tool.get_current_tool_id
             )
             # Open the gripper
-            self.__executeRobotAction(
+            self.__execute_robot_action(
                 self.__robot.tool.release_with_tool
             )
             self.__logger.info("Gripper is ready to use")
 
             # Set up the conveyer belt
-            self.__conveyor_id = self.__executeRobotAction(
+            self.__conveyor_id = self.__execute_robot_action(
                 self.__robot.conveyor.set_conveyor
             )
             self.__logger.info("Conveyer belt ready to use")
 
             # Move robot to its default position
-            self.__moveToHome()
+            self.__move_to_home()
         except:
             # If any error happens during the calibration, end the robot so the code does not hang
-            self.endRobot()
+            self.end_robot()
             raise
         
         # A thread which can manage belt actions async
-        self.__beltThread = Thread()
+        self.__belt_thread = Thread()
 
         # Total number of pieces currently on the belt
-        self.__currentPieceCount = 0
+        self.__current_piece_count = 0
 
         # Piece of left on the current stack can be (0, 1, 2)
-        self.__currentStackCount = 0
+        self.__current_stack_count = 0
 
     # Returns the current total left pieces on the belt
-    def getCurrentPieceCount():
-        return self.__currentPieceCount
+    def get_piece_count():
+        return self.__current_piece_count
     
     # Returns the current count of piece left on the stack
-    def getCurrentPieceStackCount():
-        return self.__currentStackCount
+    def get_stack_count():
+        return self.__current_stack_count
     
     # Belt set up function to place the piece on the belt before the game starts
-    def setUpBelt(self, piece_count=21, wait_time=0):
-        while self.__currentPieceCount != piece_count:
-            self.__logger.info(f"Currently setting up piece {self.__currentPieceCount}")
+    def set_up_belt(self, piece_count=21, wait_time=0):
+        while self.__current_piece_count != piece_count:
+            self.__logger.info(f"Currently setting up piece {self.__current_piece_count}")
             
             # Determine which place to show to the user
-            self.__logger.info(f"This piece will be placed on position {self.__currentStackCount + 1}")
-            self.__currentPieceCount += 1
+            self.__logger.info(f"This piece will be placed on position {self.__current_stack_count + 1}")
+            self.__current_piece_count += 1
 
             # Move the robot arm to that position and wait for user input
-            self.__moveToPos(self.__index0_pos if self.__currentStackCount==0 else self.__index1_pos)
+            self.__move_to_pos(self.__index0_pos if self.__current_stack_count==0 else self.__index1_pos)
             if wait_time == 0:
                 self.__logger.info("Press enter to continue for the next piece...")
                 input()
             else:
                 self.__logger.info(f"Waiting {wait_time} seconds for piece to be placed")
                 time.sleep(wait_time)
-            self.__currentStackCount += 1
+            self.__current_stack_count += 1
 
             # Move to home after piece is placed
-            self.__moveToHome()
+            self.__move_to_home()
 
             # Move the belt since 2 pieces were placed
-            if self.__currentStackCount == 2 and (self.__currentPieceCount != piece_count):
+            if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
                 self.__logger.info("Piece stack full moving pieces to the left")
-                self.__currentStackCount = 0
-                self.__movePiecesOnBelt(ConveyorDirection.BACKWARD)
+                self.__current_stack_count = 0
+                self.__move_pieces_on_belt(ConveyorDirection.BACKWARD)
     
     # Grab the next piece, which piece to grab is calculated by itself
-    def grabPiece(self):
+    def grab_piece(self):
         # If there are no pieces left on the belt don't do anything
-        if self.__currentPieceCount == 0:
+        if self.__current_piece_count == 0:
             return
         
         # Wait if beltThread did not finish the task
-        if self.__beltThread.is_alive():
-            self.__beltThread.join()
+        if self.__belt_thread.is_alive():
+            self.__belt_thread.join()
         
-        self.__moveToPos(self.__index0_pos if self.__currentStackCount==1 else self.__index1_pos)
-        self.__executeRobotAction(
+        self.__move_to_pos(self.__index0_pos if self.__current_stack_count==1 else self.__index1_pos)
+        self.__execute_robot_action(
             self.__robot.tool.grasp_with_tool
         )
-        self.__moveToHome()
-        self.__currentStackCount -= 1
+        self.__move_to_home()
+        self.__current_stack_count -= 1
         
         # If stack is empty then move the new stones on the belt async
-        if self.__currentStackCount == 0 and self.__currentPieceCount != 0:
-            self.__currentStackCount = 2
-            self.__beltThread = Thread(target=self.__movePiecesOnBelt, args=(ConveyorDirection.FORWARD,))
-            self.__beltThread.start()
+        if self.__current_stack_count == 0 and self.__current_piece_count != 0:
+            self.__current_stack_count = 2
+            self.__belt_thread = Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.FORWARD,))
+            self.__belt_thread.start()
 
     # Take the piece and drop it next to the robot
     # TODO temp function remove this later
-    def dropPiece(self):
-        self.__moveToPos(self.__drop_pos)
-        self.__executeRobotAction(
+    def drop_piece(self):
+        self.__move_to_pos(self.__drop_pos)
+        self.__execute_robot_action(
             self.__robot.tool.release_with_tool
         )
-        self.__moveToHome()
+        self.__move_to_home()
 
     # Move pieces on the belt
-    def __movePiecesOnBelt(self, direction: ConveyorDirection):
-        self.__executeRobotAction(
+    def __move_pieces_on_belt(self, direction: ConveyorDirection):
+        self.__execute_robot_action(
             self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, direction
         )
         time.sleep(2.5)
-        self.__executeRobotAction(
+        self.__execute_robot_action(
             self.__robot.conveyor.stop_conveyor, self.__conveyor_id
         )
 
     # Function to end the control instance, must be called at the end
-    def endRobot(self):
+    def end_robot(self):
         self.__robot.end()
 
     # work around ros timing bug where the robot fails sometimes for no reason
-    def __executeRobotAction(self, action, *args):
+    def __execute_robot_action(self, action, *args):
         action_retry = True
         result = None
         try:
@@ -190,27 +190,26 @@ class Robot:
             except RosTimeoutError as e:
                 # robot internal bug safe to ignore
                 # TODO in the future maybe add a retry limit
-                threed_dot = "..."
-                self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {threed_dot if name is None else name}")
+                three_dot = "..."
+                self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {three_dot if name is None else name}")
                 continue
         return result
 
     # Function for moving back to the home pose
-    def __moveToHome(self):
-        self.__moveToPos(self.__better_home_pos)
+    def __move_to_home(self):
+        self.__move_to_pos(self.__better_home_pos)
         self.__logger.info("Moved to home position")
 
     # Move robot to specified position
-    def __moveToPos(self, pos: PoseObject):
-        self.__executeRobotAction(
+    def __move_to_pos(self, pos: PoseObject):
+        self.__execute_robot_action(
             self.__robot.arm.move_pose, pos
         )
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
-
 # Test function for robot
 def __robotTest(args):
-    test_logger = CreateLogger("ROBOT_TEST")
+    test_logger = create_logger("ROBOT_TEST")
     try:
         robot_ethernet = None
         try:
@@ -220,18 +219,18 @@ def __robotTest(args):
             sys.exit(1)
         
         original_piece = args.piece
-        robot_ethernet.setUpBelt(piece_count=args.piece, wait_time=args.wait)
+        robot_ethernet.set_up_belt(piece_count=args.piece, wait_time=args.wait)
         while original_piece:
             original_piece -= 1
-            robot_ethernet.grabPiece()
-            robot_ethernet.dropPiece()
+            robot_ethernet.grab_piece()
+            robot_ethernet.drop_piece()
         
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
     finally:
         if robot_ethernet is not None:
-            robot_ethernet.endRobot()
+            robot_ethernet.end_robot()
 
 if __name__ == "__main__":
     import sys
