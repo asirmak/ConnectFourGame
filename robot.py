@@ -175,6 +175,11 @@ class Robot:
     def __executeRobotAction(self, action, *args):
         action_retry = True
         result = None
+        try:
+            name = action.__name__
+        except AttributeError:
+            name = None
+        
         while action_retry:
             try:
                 result = action(*args)
@@ -185,7 +190,8 @@ class Robot:
             except RosTimeoutError as e:
                 # robot internal bug safe to ignore
                 # TODO in the future maybe add a retry limit
-                self.__logger.warning("Robot internal timing bug, safe to ignore, retrying action...")
+                threed_dot = "..."
+                self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {threed_dot if name is None else name}")
                 continue
         return result
 
