@@ -199,7 +199,7 @@ class Robot:
         self.__executeRobotAction(
             self.__robot.arm.move_pose, pos
         )
-        self.__logger.info(f"Moved to position {pos}")
+        self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
 
 # Test function for robot
