@@ -214,7 +214,7 @@ def __robotTest(args):
             sys.exit(1)
         
         original_piece = args.piece
-        robot_ethernet.setUpBelt(args.piece)
+        robot_ethernet.setUpBelt(piece_count=args.piece, wait_time=args.wait)
         while original_piece:
             original_piece -= 1
             robot_ethernet.grabPiece()
@@ -246,6 +246,13 @@ if __name__ == "__main__":
         type=int,
         help="game piece count",
         default=21
+    )
+
+    parser.add_argument(
+        "--wait",
+        type=int,
+        help="wait time for the pieces",
+        default=0
     )
 
     args = parser.parse_args()
