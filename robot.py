@@ -217,6 +217,7 @@ class Robot:
         )
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
+# TODO Implement unittest later
 # Test function for robot
 def __robotTest(args):
     test_logger = create_logger("ROBOT_TEST")
