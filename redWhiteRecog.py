@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 
+camera_inst = np.array([[508.069, 0.0, 332.821], [0.0, 506.445, 242.984], [0.0, 0.0, 1.0]])
+camera_dist = np.array([[-0.4146402, 0.2407384, 0.0, 0.0, -0.1040042]])
+
 board_array_1 = [["." for _ in range(7)] for _ in range(6)]
 
 # Boundaries
@@ -18,7 +21,10 @@ black_upper = np.array([179, 255, 74])
 
 kernel = np.ones((5, 5), "uint8")
 
-image = cv2.imread("pp.jpg")
+# image = cv2.imread("pp.jpg")
+cap = cv2.VideoCapture(3)
+ret,image = cap.read()
+image = cv2.undistort(image, camera_inst, camera_dist)
 frame = image
 
 hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
