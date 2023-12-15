@@ -34,10 +34,20 @@ class Robot:
 
     # TODO Change this to actual game board positions later
     # Dummy position where the robot can drop the pieces by its side
-    __drop_pos = PoseObject(
-        x=-0.022, y=0.2, z=0.2,
-        roll=0.013, pitch=0.023, yaw=1.653
-    )
+    __board_pos = [
+        PoseObject(
+            x=0.09, y=0.274, z=0.208,
+            roll=-0.008, pitch=0.069, yaw=1.602
+        ),
+        PoseObject(
+            x=0.049, y=0.272, z=0.208,
+            roll=-0.007, pitch=0.08, yaw=1.6
+        ),
+        PoseObject(
+            x=0.01, y=0.27, z=0.208,
+            roll=-0.012, pitch=0.074, yaw=1.601
+        )
+    ]
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
         # Connect to robot
@@ -141,6 +151,7 @@ class Robot:
         )
         self.__move_to_home()
         self.__current_stack_count -= 1
+        self.__current_piece_count -= 1
         
         # If stack is empty then move the new stones on the belt async
         if self.__current_stack_count == 0 and self.__current_piece_count != 0:
@@ -150,8 +161,8 @@ class Robot:
 
     # Take the piece and drop it next to the robot
     # TODO temp function remove this later
-    def drop_piece(self):
-        self.__move_to_pos(self.__drop_pos)
+    def drop_piece(self, index):
+        self.__move_to_pos(self.__board_pos[index])
         self.__execute_robot_action(
             self.__robot.tool.release_with_tool
         )
@@ -223,7 +234,7 @@ def __robotTest(args):
         while original_piece:
             original_piece -= 1
             robot_ethernet.grab_piece()
-            robot_ethernet.drop_piece()
+            robot_ethernet.drop_piece(2)
         
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
