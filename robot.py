@@ -32,8 +32,8 @@ class Robot:
         roll=0.0, pitch=1.55, yaw=0
     )
 
-    # TODO Change this to actual game board positions later
-    # Dummy position where the robot can drop the pieces by its side
+    # Board positions where the robot can drop the pieces to the lanes
+    # Starting from 0 most right lane for the robot
     __board_pos = [
         PoseObject(
             x=0.09, y=0.274, z=0.208,
@@ -159,9 +159,8 @@ class Robot:
             self.__belt_thread = Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.FORWARD,))
             self.__belt_thread.start()
 
-    # Take the piece and drop it next to the robot
-    # TODO temp function remove this later
-    def drop_piece(self, index):
+    # Drop the piece to the specified lane starting from 0
+    def drop_piece_to_board(self, index):
         self.__move_to_pos(self.__board_pos[index])
         self.__execute_robot_action(
             self.__robot.tool.release_with_tool
@@ -234,7 +233,7 @@ def __robotTest(args):
         while original_piece:
             original_piece -= 1
             robot_ethernet.grab_piece()
-            robot_ethernet.drop_piece(2)
+            robot_ethernet.drop_piece_to_board(2)
         
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
