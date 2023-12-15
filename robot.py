@@ -167,6 +167,10 @@ class Robot:
         )
         self.__move_to_home()
 
+    # Function to end the control instance, must be called at the end
+    def end_robot(self):
+        self.__robot.end()
+
     # Move pieces on the belt
     def __move_pieces_on_belt(self, direction: ConveyorDirection):
         self.__execute_robot_action(
@@ -176,10 +180,6 @@ class Robot:
         self.__execute_robot_action(
             self.__robot.conveyor.stop_conveyor, self.__conveyor_id
         )
-
-    # Function to end the control instance, must be called at the end
-    def end_robot(self):
-        self.__robot.end()
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __execute_robot_action(self, action, *args):
