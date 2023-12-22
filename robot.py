@@ -112,6 +112,8 @@ class Robot:
 
         self.__board_calibrated = False
 
+        self.__magazine_ready = False
+
     # Returns the current total left pieces on the belt
     @property
     def get_piece_count(self):
@@ -132,6 +134,18 @@ class Robot:
     
     # Belt set up function to place the piece on the belt before the game starts
     def set_up_game(self, piece_count=21):
+        # Set up magazine if not already set up
+        if not self.__magazine_ready:
+            self.__move_to_pos(self.__mag_pos)
+
+            self.__logger.info("Magazine should be placed to the shown position by the robot")
+            self.__logger.info("Press enter to continue after the magazine is ready")
+            input()
+
+            self.__move_to_home()
+
+            self.__magazine_ready = True
+
         while self.__current_piece_count != piece_count:
             self.__logger.info(f"Currently setting up piece {self.__current_piece_count}")
             
