@@ -284,6 +284,8 @@ class Robot:
         except IndexError:
             self.__logger.info("Skipping hardware status checking for simulation since it does not exist")
         
+        # Warning! Requires Python 3.10+!
+        # TODO Maybe change this so it does not require newer python version
         match action:
             case GripperAction.OPEN:
                 self.__execute_robot_action(
