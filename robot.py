@@ -45,18 +45,16 @@ class Robot:
     # Board positions where the robot can drop the pieces to the lanes
     # Starting from 0 most right lane for the robot
     __board_pos = [
-        PoseObject(
-            x=0.09, y=0.274, z=0.208,
-            roll=-0.008, pitch=0.069, yaw=1.602
+        (
+            PoseObject(
+                x=0.168, y=0.314, z=0.223,
+                roll=-0.06, pitch=-0.016, yaw=1.551
+            ),
+            PoseObject(
+                x=0.164, y=0.316, z=0.208,
+                roll=0.063, pitch=-0.006, yaw=1.546
+            )
         ),
-        PoseObject(
-            x=0.049, y=0.272, z=0.208,
-            roll=-0.007, pitch=0.08, yaw=1.6
-        ),
-        PoseObject(
-            x=0.01, y=0.27, z=0.208,
-            roll=-0.012, pitch=0.074, yaw=1.601
-        )
     ]
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
