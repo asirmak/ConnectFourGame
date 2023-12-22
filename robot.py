@@ -111,12 +111,22 @@ class Robot:
         self.__board_calibrated = False
 
     # Returns the current total left pieces on the belt
+    @property
     def get_piece_count(self):
         return self.__current_piece_count
     
     # Returns the current count of piece left on the stack
+    @property
     def get_stack_count(self):
         return self.__current_stack_count
+
+    @property
+    def get_board_status(self):
+        return self.__board_calibrated
+
+    @property
+    def get_magazine_status(self):
+        return self.__magazine_ready
     
     # Belt set up function to place the piece on the belt before the game starts
     def set_up_belt(self, piece_count=21, wait_time=0):
