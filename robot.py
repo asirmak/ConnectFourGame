@@ -270,14 +270,19 @@ class Robot:
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
     def __control_gripper(self, action: GripperAction):
-        tool_state = self.__robot.arm.hardware_status.value.hardware_errors[7]
+        try:
+            tool_state = self.__arm.hardware_status.value.hardware_errors[7]
 
-        while tool_state != 0:
-            self.__logger.warning("Gripper overheadted or run into an error, restarting gripper")
-            self.__execute_robot_action(
-                self.__robot.tool.update_tool
-            )
-            tool_state = self.__robot.arm.hardware_status.value.hardware_errors[7]
+            # If tool has an error, reboot the tool until error state clears
+            # I know this looks stupid but this is how it works in NiryoStudio
+            while tool_state != 0:
+                self.__logger.warning("Gripper overheadted or run into an error, restarting gripper")
+                self.__execute_robot_action(
+                    self.__tool.update_tool
+                )
+                tool_state = self.__arm.hardware_status.value.hardware_errors[7]
+        except IndexError:
+            self.__logger.info("Skipping hardware status checking for simulation since it does not exist")
         
         match action:
             case GripperAction.OPEN:
