@@ -20,6 +20,16 @@ class Robot:
         roll=0, pitch=0.759, yaw=0
     )
 
+    __mag_pos_bef = PoseObject(
+        x=0.099, y=-0.236, z=0.2,
+        roll=-3.137, pitch=1.245, yaw=3.085
+    )
+
+    __mag_pos = PoseObject(
+        x=0.093, y=-0.24, z=0.16,
+        roll=3.02, pitch=1.212, yaw=2.993
+    )
+
     # Location of the piece at index 0 on the belt (robot side)
     __index0_pos = PoseObject(
         x=0.125, y=0.0, z=0.152,
