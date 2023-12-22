@@ -164,7 +164,8 @@ class Robot:
             if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
                 self.__logger.info("Piece stack full moving pieces to the left")
                 self.__current_stack_count = 0
-                self.__move_pieces_on_belt(ConveyorDirection.BACKWARD)
+                self.__belt_thread = Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
+                self.__belt_thread.start()
     
     # Grab the next piece, which piece to grab is calculated by itself
     def grab_piece(self):
