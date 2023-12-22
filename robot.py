@@ -108,11 +108,11 @@ class Robot:
         self.__current_stack_count = 0
 
     # Returns the current total left pieces on the belt
-    def get_piece_count():
+    def get_piece_count(self):
         return self.__current_piece_count
     
     # Returns the current count of piece left on the stack
-    def get_stack_count():
+    def get_stack_count(self):
         return self.__current_stack_count
     
     # Belt set up function to place the piece on the belt before the game starts
