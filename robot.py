@@ -1,6 +1,7 @@
 from pyniryo2 import *
 from roslibpy.core import RosTimeoutError
 from src.utils.Logging import create_logger
+from src.robot.enums import GripperAction
 import time
 from threading import Thread
 
@@ -107,6 +108,8 @@ class Robot:
         # Piece of left on the current stack can be (0, 1, 2)
         self.__current_stack_count = 0
 
+        self.__board_calibrated = False
+
     # Returns the current total left pieces on the belt
     def get_piece_count(self):
         return self.__current_piece_count
@@ -125,14 +128,34 @@ class Robot:
             self.__current_piece_count += 1
 
             # Move the robot arm to that position and wait for user input
+            self.__move_to_pos(self.__mag_pos_bef)
+
+            self.__execute_robot_action(
+                self.__robot.arm.set_arm_max_velocity, 30
+            )
+
+            self.__move_to_pos(self.__mag_pos)
+            
+            self.__control_gripper(GripperAction.CLOSE)
+
+            self.__move_to_pos(self.__mag_pos_bef)
+
+            self.__execute_robot_action(
+                self.__robot.arm.set_arm_max_velocity, 100
+            )
+
+            self.__move_to_home()
+
+            if not self.__board_calibrated:
+                self.__calibrate_board()
+
+            if self.__belt_thread.is_alive():
+                self.__belt_thread.join()
+
             self.__move_to_pos(self.__index0_pos if self.__current_stack_count==0 else self.__index1_pos)
-            if wait_time == 0:
-                self.__logger.info("Press enter to continue for the next piece...")
-                input()
-            else:
-                self.__logger.info(f"Waiting {wait_time} seconds for piece to be placed")
-                time.sleep(wait_time)
             self.__current_stack_count += 1
+
+            self.__control_gripper(GripperAction.OPEN)
 
             # Move to home after piece is placed
             self.__move_to_home()
@@ -154,9 +177,7 @@ class Robot:
             self.__belt_thread.join()
         
         self.__move_to_pos(self.__index0_pos if self.__current_stack_count==1 else self.__index1_pos)
-        self.__execute_robot_action(
-            self.__robot.tool.grasp_with_tool
-        )
+        self.__control_gripper(GripperAction.CLOSE)
         self.__move_to_home()
         self.__current_stack_count -= 1
         self.__current_piece_count -= 1
@@ -169,10 +190,12 @@ class Robot:
 
     # Drop the piece to the specified lane starting from 0
     def drop_piece_to_board(self, index):
-        self.__move_to_pos(self.__board_pos[index])
-        self.__execute_robot_action(
-            self.__robot.tool.release_with_tool
-        )
+        self.__move_to_pos(self.__board_pos[index][0])
+        self.__move_to_pos(self.__board_pos[index][1])
+
+        self.__control_gripper(GripperAction.OPEN)
+
+        self.__move_to_pos(self.__board_pos[index][0])
         self.__move_to_home()
 
     # Function to end the control instance, must be called at the end
@@ -225,6 +248,35 @@ class Robot:
         )
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
+    def __control_gripper(self, action: GripperAction):
+        tool_state = self.__robot.arm.hardware_status.value.hardware_errors[7]
+
+        while tool_state != 0:
+            self.__logger.warning("Gripper overheadted or run into an error, restarting gripper")
+            self.__execute_robot_action(
+                self.__robot.tool.update_tool
+            )
+            tool_state = self.__robot.arm.hardware_status.value.hardware_errors[7]
+        
+        match action:
+            case GripperAction.OPEN:
+                self.__execute_robot_action(
+                    self.__robot.tool.release_with_tool
+                )
+            case GripperAction.CLOSE:
+                self.__execute_robot_action(
+                    self.__robot.tool.grasp_with_tool
+                )
+    
+    def __calibrate_board(self):
+        self.__move_to_pos(self.__board_pos[0][0])
+        self.__move_to_pos(self.__board_pos[0][1])
+        self.__logger.info("Waiting for adjust the game board, press enter to continue...")
+        input()
+        self.__move_to_pos(self.__board_pos[0][0])
+        self.__move_to_home()
+        self.__board_calibrated = True
+
 # TODO Implement unittest later
 # Test function for robot
 def __robotTest(args):
@@ -242,7 +294,9 @@ def __robotTest(args):
         while original_piece:
             original_piece -= 1
             robot_ethernet.grab_piece()
-            robot_ethernet.drop_piece_to_board(2)
+            robot_ethernet.drop_piece_to_board(0)
+
+        # robot_ethernet.hardware_info()
         
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
