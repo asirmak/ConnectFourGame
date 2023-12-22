@@ -278,13 +278,20 @@ class Robot:
                 self.__execute_robot_action(
                     self.__robot.tool.grasp_with_tool
                 )
-    
+
+    # This function calibrates the place of the game board
     def __calibrate_board(self):
-        self.__move_to_pos(self.__board_pos[0][0])
-        self.__move_to_pos(self.__board_pos[0][1])
-        self.__logger.info("Waiting for adjust the game board, press enter to continue...")
-        input()
-        self.__move_to_pos(self.__board_pos[0][0])
+        # Calibrate board positions
+        for board_row in self.__board_pos:
+            self.__move_to_pos(board_row[0])
+            self.__move_to_pos(board_row[1])
+
+            # Wait for user confirmation
+            self.__logger.info("Waiting for you to adjust the game board, press enter to continue...")
+            input()
+
+            self.__move_to_pos(board_row[0])
+
         self.__move_to_home()
         self.__board_calibrated = True
 
