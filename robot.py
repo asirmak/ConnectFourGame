@@ -129,7 +129,7 @@ class Robot:
         return self.__magazine_ready
     
     # Belt set up function to place the piece on the belt before the game starts
-    def set_up_belt(self, piece_count=21, wait_time=0):
+    def set_up_game(self, piece_count=21):
         while self.__current_piece_count != piece_count:
             self.__logger.info(f"Currently setting up piece {self.__current_piece_count}")
             
@@ -301,7 +301,7 @@ def __robotTest(args):
             sys.exit(1)
         
         original_piece = args.piece
-        robot_ethernet.set_up_belt(piece_count=args.piece, wait_time=args.wait)
+        robot_ethernet.set_up_game(piece_count=args.piece)
         while original_piece:
             original_piece -= 1
             robot_ethernet.grab_piece()
@@ -335,13 +335,6 @@ if __name__ == "__main__":
         type=int,
         help="game piece count",
         default=21
-    )
-
-    parser.add_argument(
-        "--wait",
-        type=int,
-        help="wait time for the pieces",
-        default=0
     )
 
     args = parser.parse_args()
