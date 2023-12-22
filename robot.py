@@ -3,7 +3,7 @@ from roslibpy.core import RosTimeoutError
 from src.utils.Logging import create_logger
 from src.robot.enums import GripperAction
 import time
-from threading import Thread
+import threading
 
 class Robot:
     # Constant variables
@@ -68,27 +68,29 @@ class Robot:
         
         try:
             # Calibrate the robot
+            self.__arm = self.__robot.arm
             self.__execute_robot_action(
-                self.__robot.arm.calibrate_auto
+                self.__arm.calibrate_auto
             )
             self.__logger.info("Arm is calibrated and ready to use")
 
             # Detect the currently attached tool
+            self.__tool = self.__robot.tool
             self.__execute_robot_action(
-                self.__robot.tool.update_tool
+                self.__tool.update_tool
             )
+            #TODO This is currently useless, add a sanity check later
             current_tool = self.__execute_robot_action(
-                self.__robot.tool.get_current_tool_id
+                self.__tool.get_current_tool_id
             )
             # Open the gripper
-            self.__execute_robot_action(
-                self.__robot.tool.release_with_tool
-            )
+            self.__control_gripper(GripperAction.OPEN)
             self.__logger.info("Gripper is ready to use")
 
             # Set up the conveyer belt
+            self.__conveyor = self.__robot.conveyor
             self.__conveyor_id = self.__execute_robot_action(
-                self.__robot.conveyor.set_conveyor
+                self.__conveyor.set_conveyor
             )
             self.__logger.info("Conveyer belt ready to use")
 
@@ -99,8 +101,8 @@ class Robot:
             self.end_robot()
             raise
         
-        # A thread which can manage belt actions async
-        self.__belt_thread = Thread()
+        # A lock to use the belt
+        self.__belt_lock = threading.Lock()
 
         # Total number of pieces currently on the belt
         self.__current_piece_count = 0
@@ -137,11 +139,13 @@ class Robot:
             self.__logger.info(f"This piece will be placed on position {self.__current_stack_count + 1}")
             self.__current_piece_count += 1
 
-            # Move the robot arm to that position and wait for user input
+            # Move to magazine to grab a piece
             self.__move_to_pos(self.__mag_pos_bef)
 
+            # TODO Handle decrease and increase speed with keyword in the future
+            # Decrease arm speed for precise actions
             self.__execute_robot_action(
-                self.__robot.arm.set_arm_max_velocity, 30
+                self.__arm.set_arm_max_velocity, 30
             )
 
             self.__move_to_pos(self.__mag_pos)
@@ -150,8 +154,9 @@ class Robot:
 
             self.__move_to_pos(self.__mag_pos_bef)
 
+            # Increase mag speed again
             self.__execute_robot_action(
-                self.__robot.arm.set_arm_max_velocity, 100
+                self.__arm.set_arm_max_velocity, 100
             )
 
             self.__move_to_home()
@@ -159,23 +164,23 @@ class Robot:
             if not self.__board_calibrated:
                 self.__calibrate_board()
 
-            if self.__belt_thread.is_alive():
-                self.__belt_thread.join()
+            # Acquire belt control to place the piece
+            with self.__belt_lock:
+                self.__logger.info("Belt locked for placing the piece")
+                self.__move_to_pos(self.__index0_pos if self.__current_stack_count==0 else self.__index1_pos)
+                self.__current_stack_count += 1
 
-            self.__move_to_pos(self.__index0_pos if self.__current_stack_count==0 else self.__index1_pos)
-            self.__current_stack_count += 1
+                self.__control_gripper(GripperAction.OPEN)
 
-            self.__control_gripper(GripperAction.OPEN)
-
-            # Move to home after piece is placed
-            self.__move_to_home()
+                # Move to home after piece is placed
+                self.__move_to_home()
 
             # Move the belt since 2 pieces were placed
             if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
                 self.__logger.info("Piece stack full moving pieces to the left")
                 self.__current_stack_count = 0
-                self.__belt_thread = Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
-                self.__belt_thread.start()
+                belt_action = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
+                belt_action.start()
     
     # Grab the next piece, which piece to grab is calculated by itself
     def grab_piece(self):
@@ -183,21 +188,19 @@ class Robot:
         if self.__current_piece_count == 0:
             return
         
-        # Wait if beltThread did not finish the task
-        if self.__belt_thread.is_alive():
-            self.__belt_thread.join()
-        
-        self.__move_to_pos(self.__index0_pos if self.__current_stack_count==1 else self.__index1_pos)
-        self.__control_gripper(GripperAction.CLOSE)
-        self.__move_to_home()
-        self.__current_stack_count -= 1
-        self.__current_piece_count -= 1
+        # Make sure belt does not move while taking the pieces
+        with self.__belt_lock:
+            self.__move_to_pos(self.__index0_pos if self.__current_stack_count==1 else self.__index1_pos)
+            self.__control_gripper(GripperAction.CLOSE)
+            self.__move_to_home()
+            self.__current_stack_count -= 1
+            self.__current_piece_count -= 1
         
         # If stack is empty then move the new stones on the belt async
         if self.__current_stack_count == 0 and self.__current_piece_count != 0:
             self.__current_stack_count = 2
-            self.__belt_thread = Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.FORWARD,))
-            self.__belt_thread.start()
+            belt_thread = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.FORWARD,))
+            belt_thread.start()
 
     # Drop the piece to the specified lane starting from 0
     def drop_piece_to_board(self, index):
@@ -215,13 +218,20 @@ class Robot:
 
     # Move pieces on the belt
     def __move_pieces_on_belt(self, direction: ConveyorDirection):
-        self.__execute_robot_action(
-            self.__robot.conveyor.run_conveyor, self.__conveyor_id, 25, direction
-        )
-        time.sleep(2.5)
-        self.__execute_robot_action(
-            self.__robot.conveyor.stop_conveyor, self.__conveyor_id
-        )
+        with self.__belt_lock:
+            self.__logger.info(f"Belt locked by thread {threading.get_ident()}")
+            log_dirct = "left" if ConveyorDirection.BACKWARD else "right"
+            self.__logger.info(f"Conveyor belt is currently moving to the {log_dirct}")
+
+            self.__execute_robot_action(
+                self.__conveyor.run_conveyor, self.__conveyor_id, 25, direction
+            )
+            time.sleep(2.5)
+            self.__execute_robot_action(
+                self.__conveyor.stop_conveyor, self.__conveyor_id
+            )
+
+            self.__logger.info(f"Belt locked removed by thread {threading.get_ident()}")
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __execute_robot_action(self, action, *args):
@@ -255,7 +265,7 @@ class Robot:
     # Move robot to specified position
     def __move_to_pos(self, pos: PoseObject):
         self.__execute_robot_action(
-            self.__robot.arm.move_pose, pos
+            self.__arm.move_pose, pos
         )
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
@@ -272,11 +282,11 @@ class Robot:
         match action:
             case GripperAction.OPEN:
                 self.__execute_robot_action(
-                    self.__robot.tool.release_with_tool
+                    self.__tool.release_with_tool
                 )
             case GripperAction.CLOSE:
                 self.__execute_robot_action(
-                    self.__robot.tool.grasp_with_tool
+                    self.__tool.grasp_with_tool
                 )
 
     # This function calibrates the place of the game board
