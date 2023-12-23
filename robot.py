@@ -1,10 +1,13 @@
+import threading
+import time
+from contextlib import contextmanager
+
 from pyniryo2 import *
 from roslibpy.core import RosTimeoutError
-from src.utils.Logging import create_logger
+
 from src.robot.enums import GripperAction
-import time
-import threading
-from contextlib import contextmanager
+from src.utils.Logging import create_logger
+
 
 class Robot:
     # Constant variables
@@ -359,8 +362,8 @@ def __robotTest(args):
             robot_ethernet.end_robot()
 
 if __name__ == "__main__":
-    import sys
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description="Run tests for the robot")
 
