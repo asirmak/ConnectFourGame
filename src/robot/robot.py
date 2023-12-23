@@ -2,11 +2,10 @@ import threading
 import time
 from contextlib import contextmanager
 
-from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
-from roslibpy.core import RosTimeoutError
-
 from custom_exceptions import InvalidToolError
 from enums import GripperAction
+from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
+from roslibpy.core import RosTimeoutError
 from utils.logging import create_logger
 
 
