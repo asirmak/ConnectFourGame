@@ -4,6 +4,7 @@ from src.utils.Logging import create_logger
 from src.robot.enums import GripperAction
 import time
 import threading
+from contextlib import contextmanager
 
 class Robot:
     # Constant variables
@@ -157,22 +158,13 @@ class Robot:
             # Move to magazine to grab a piece
             self.__move_to_pos(self.__mag_pos_bef)
 
-            # TODO Handle decrease and increase speed with keyword in the future
             # Decrease arm speed for precise actions
-            self.__execute_robot_action(
-                self.__arm.set_arm_max_velocity, 30
-            )
-
-            self.__move_to_pos(self.__mag_pos)
+            with self.__slow_arm_control():
+                self.__move_to_pos(self.__mag_pos)
             
-            self.__control_gripper(GripperAction.CLOSE)
+                self.__control_gripper(GripperAction.CLOSE)
 
-            self.__move_to_pos(self.__mag_pos_bef)
-
-            # Increase mag speed again
-            self.__execute_robot_action(
-                self.__arm.set_arm_max_velocity, 100
-            )
+                self.__move_to_pos(self.__mag_pos_bef)
 
             self.__move_to_home()
 
@@ -316,16 +308,30 @@ class Robot:
         # Calibrate board positions
         for board_row in self.__board_pos:
             self.__move_to_pos(board_row[0])
-            self.__move_to_pos(board_row[1])
+            with self.__slow_arm_control():
+                self.__move_to_pos(board_row[1])
 
-            # Wait for user confirmation
-            self.__logger.info("Waiting for you to adjust the game board, press enter to continue...")
-            input()
+                # Wait for user confirmation
+                self.__logger.info("Waiting for you to adjust the game board, press enter to continue...")
+                input()
 
-            self.__move_to_pos(board_row[0])
+                self.__move_to_pos(board_row[0])
 
         self.__move_to_home()
         self.__board_calibrated = True
+
+    @contextmanager
+    def __slow_arm_control(self, slow_speed=30):
+        slow_arm = self.__arm
+        self.__execute_robot_action(
+            slow_arm.set_arm_max_velocity, slow_speed
+        )
+        try:
+            yield slow_arm
+        finally:
+            self.__execute_robot_action(
+                slow_arm.set_arm_max_velocity, 100
+            )
 
 # TODO Implement unittest later
 # Test function for robot
