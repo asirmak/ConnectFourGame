@@ -5,9 +5,9 @@ from contextlib import contextmanager
 from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
 from roslibpy.core import RosTimeoutError
 
-from src.robot.custom_exceptions import InvalidToolError
-from src.robot.enums import GripperAction
-from src.utils.Logging import create_logger
+from custom_exceptions import InvalidToolError
+from enums import GripperAction
+from utils.logging import create_logger
 
 
 class Robot:
