@@ -291,17 +291,14 @@ class Robot:
         except IndexError:
             self.__logger.info("Skipping hardware status checking for simulation since it does not exist")
         
-        # Warning! Requires Python 3.10+!
-        # TODO Maybe change this so it does not require newer python version
-        match action:
-            case GripperAction.OPEN:
-                self.__execute_robot_action(
+        if action == GripperAction.OPEN:
+            self.__execute_robot_action(
                     self.__tool.release_with_tool
-                )
-            case GripperAction.CLOSE:
-                self.__execute_robot_action(
+            )
+        else:
+            self.__execute_robot_action(
                     self.__tool.grasp_with_tool
-                )
+            )
 
     # This function calibrates the place of the game board
     def __calibrate_board(self):
