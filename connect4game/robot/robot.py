@@ -125,9 +125,6 @@ class Robot:
 
         self.__magazine_ready = False
 
-    def hardware_info(self):
-        print(self.__arm.hardware_status.value)
-
     # Returns the current total left pieces on the belt
     @property
     def get_piece_count(self):
@@ -355,13 +352,13 @@ def __robotTest(args):
         raise
 
     try:
-        # original_piece = args.piece
-        # robot_ethernet.set_up_game(piece_count=args.piece)
-        # while original_piece:
-        #     original_piece -= 1
-        #     robot_ethernet.grab_piece()
-        #     robot_ethernet.drop_piece_to_board(0)
-        robot_ethernet.hardware_info()
+        original_piece = args.piece
+        robot_ethernet.set_up_game(piece_count=args.piece)
+        while original_piece:
+            original_piece -= 1
+            robot_ethernet.grab_piece()
+            robot_ethernet.drop_piece_to_board(0)
+        
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
