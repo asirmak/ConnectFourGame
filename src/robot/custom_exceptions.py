@@ -1,0 +1,2 @@
+class InvalidToolError(Exception):
+    pass

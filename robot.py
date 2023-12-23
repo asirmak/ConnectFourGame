@@ -2,9 +2,10 @@ import threading
 import time
 from contextlib import contextmanager
 
-from pyniryo2 import *
+from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
 from roslibpy.core import RosTimeoutError
 
+from src.robot.custom_exceptions import InvalidToolError
 from src.robot.enums import GripperAction
 from src.utils.Logging import create_logger
 
@@ -83,10 +84,12 @@ class Robot:
             self.__execute_robot_action(
                 self.__tool.update_tool
             )
-            #TODO This is currently useless, add a sanity check later
-            current_tool = self.__execute_robot_action(
+            current_tool_id = self.__execute_robot_action(
                 self.__tool.get_current_tool_id
             )
+            if current_tool_id not in [ToolID.GRIPPER_1, ToolID.GRIPPER_2, ToolID.GRIPPER_3, ToolID.GRIPPER_4]:
+                self.__logger.critical("Gripper not detected! Please check if the gripper is connected properly")
+                raise InvalidToolError
             # Open the gripper
             self.__control_gripper(GripperAction.OPEN)
             self.__logger.info("Gripper is ready to use")
@@ -259,7 +262,7 @@ class Robot:
             except TypeError:
                 self.__logger.critical("You did a coding error, do not pass function call instead pass a function reference")
                 raise
-            except RosTimeoutError as e:
+            except RosTimeoutError:
                 # robot internal bug safe to ignore
                 # TODO in the future maybe add a retry limit
                 three_dot = "..."
