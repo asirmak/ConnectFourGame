@@ -1,11 +1,17 @@
+import os
+import sys
+
+cur_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.dirname(cur_dir)
+sys.path.append(src_dir)
+
 import threading
 import time
 from contextlib import contextmanager
 
-from custom_exceptions import InvalidToolError
 from enums import GripperAction
-from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
-from roslibpy.core import RosTimeoutError
+from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID  
+from roslibpy.core import RosTimeoutError  
 from utils.logging import create_logger
 
 
@@ -87,8 +93,7 @@ class Robot:
                 self.__tool.get_current_tool_id
             )
             if current_tool_id not in [ToolID.GRIPPER_1, ToolID.GRIPPER_2, ToolID.GRIPPER_3, ToolID.GRIPPER_4]:
-                self.__logger.critical("Gripper not detected! Please check if the gripper is connected properly")
-                raise InvalidToolError
+                self.__logger.error("Gripper not detected! Ignore this if running in simulation mode")
             # Open the gripper
             self.__control_gripper(GripperAction.OPEN)
             self.__logger.info("Gripper is ready to use")
@@ -119,6 +124,9 @@ class Robot:
         self.__board_calibrated = False
 
         self.__magazine_ready = False
+
+    def hardware_info(self):
+        print(self.__arm.hardware_status.value)
 
     # Returns the current total left pieces on the belt
     @property
@@ -347,12 +355,13 @@ def __robotTest(args):
         raise
 
     try:
-        original_piece = args.piece
-        robot_ethernet.set_up_game(piece_count=args.piece)
-        while original_piece:
-            original_piece -= 1
-            robot_ethernet.grab_piece()
-            robot_ethernet.drop_piece_to_board(0)
+        # original_piece = args.piece
+        # robot_ethernet.set_up_game(piece_count=args.piece)
+        # while original_piece:
+        #     original_piece -= 1
+        #     robot_ethernet.grab_piece()
+        #     robot_ethernet.drop_piece_to_board(0)
+        robot_ethernet.hardware_info()
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
