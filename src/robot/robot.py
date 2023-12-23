@@ -339,29 +339,25 @@ class Robot:
 # Test function for robot
 def __robotTest(args):
     test_logger = create_logger("ROBOT_TEST")
+    
     try:
-        robot_ethernet = None
-        try:
-            robot_ethernet = Robot(args.ip)
-        except Exception:
-            test_logger.exception("Robot init failed!")
-            sys.exit(1)
-        
+        robot_ethernet = Robot(args.ip)
+    except:
+        test_logger.exception("Robot init failed!")
+        raise
+
+    try:
         original_piece = args.piece
         robot_ethernet.set_up_game(piece_count=args.piece)
         while original_piece:
             original_piece -= 1
             robot_ethernet.grab_piece()
             robot_ethernet.drop_piece_to_board(0)
-
-        # robot_ethernet.hardware_info()
-        
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
     finally:
-        if robot_ethernet is not None:
-            robot_ethernet.end_robot()
+        robot_ethernet.end_robot()
 
 if __name__ == "__main__":
     import argparse
