@@ -1,17 +1,10 @@
-import os
-import sys
-
-cur_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(cur_dir)
-sys.path.append(src_dir)
-
 import threading
 import time
 from contextlib import contextmanager
 
-from enums import GripperAction
-from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID  
-from roslibpy.core import RosTimeoutError  
+from enums.robot_enums import GripperAction
+from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
+from roslibpy.core import RosTimeoutError
 from utils.logging import create_logger
 
 
