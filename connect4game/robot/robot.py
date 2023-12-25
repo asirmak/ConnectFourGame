@@ -2,10 +2,10 @@ import threading
 import time
 from contextlib import contextmanager
 
-from enums.robot_enums import GripperAction
+from enums import GripperAction
 from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
 from roslibpy.core import RosTimeoutError
-from utils.logging import create_logger
+from connect4game.utils.logging import create_logger
 
 
 class Robot:
