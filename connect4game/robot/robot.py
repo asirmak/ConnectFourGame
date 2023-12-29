@@ -245,14 +245,18 @@ class Robot:
     # Move pieces on the belt
     def __move_pieces_on_belt(self, direction: ConveyorDirection):
         with self.__belt_lock:
+            move_time = 4.3
+            if ConveyorDirection.FORWARD:
+                move_time += 0.1
+
             self.__logger.info(f"Belt locked by thread {threading.get_ident()}")
             log_dirct = "left" if ConveyorDirection.BACKWARD else "right"
             self.__logger.info(f"Conveyor belt is currently moving to the {log_dirct}")
 
             self.__execute_robot_action(
-                self.__conveyor.run_conveyor, self.__conveyor_id, 25, direction
+                self.__conveyor.run_conveyor, self.__conveyor_id, 15, direction
             )
-            time.sleep(2.5)
+            time.sleep(move_time)
             self.__execute_robot_action(
                 self.__conveyor.stop_conveyor, self.__conveyor_id
             )
