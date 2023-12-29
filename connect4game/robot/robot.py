@@ -29,6 +29,7 @@ class Robot:
         roll=-3.137, pitch=1.245, yaw=3.085
     )
 
+    # 15.9 - 16.0 cm from first speaker hole
     __mag_pos = PoseObject(
         x=0.093, y=-0.24, z=0.16,
         roll=3.02, pitch=1.212, yaw=2.993
