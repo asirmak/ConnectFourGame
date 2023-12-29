@@ -36,15 +36,23 @@ class Robot:
     )
 
     # Location of the piece at index 0 on the belt (robot side)
-    __index0_pos = PoseObject(
+    __index0_drop_pos = PoseObject(
         x=0.125, y=0.0, z=0.152,
         roll=0.0, pitch=1.55, yaw=0
     )
+    __index0_pick_pos = PoseObject(
+        x=0.136, y=0.0, z=0.152,
+        roll=0.0, pitch=1.55, yaw=0.0
+    )
 
     # Location of the piece at index 1 on the belt (far side)
-    __index1_pos = PoseObject(
+    __index1_drop_pos = PoseObject(
         x=0.186, y=0.0, z=0.15,
         roll=0.0, pitch=1.55, yaw=0
+    )
+    __index1_pick_pos = PoseObject(
+        x=0.196, y=0.0, z=0.15,
+        roll=0.0, pitch=1.55, yaw=0.0
     )
 
     # Board positions where the robot can drop the pieces to the lanes
@@ -141,8 +149,9 @@ class Robot:
     def set_up_game(self, piece_count=21):
         # Set up magazine if not already set up
         if not self.__magazine_ready:
+            self.__move_to_pos(self.__mag_pos_bef)
+
             with self.__slow_arm_control():
-                self.__move_to_pos(self.__mag_pos_bef)
                 self.__move_to_pos(self.__mag_pos)
 
                 self.__logger.info("Magazine should be placed to the shown position by the robot")
@@ -173,21 +182,24 @@ class Robot:
 
                 self.__move_to_pos(self.__mag_pos_bef)
 
-            self.__move_to_home()
+            # Wait because garbage api decides to execute the next action without completing the first one
+            time.sleep(2)
 
-            if not self.__board_calibrated:
-                self.__calibrate_board()
+            self.__move_to_home()
 
             # Acquire belt control to place the piece
             with self.__belt_lock:
                 self.__logger.info("Belt locked for placing the piece")
-                self.__move_to_pos(self.__index0_pos if self.__current_stack_count==0 else self.__index1_pos)
+                self.__move_to_pos(self.__index0_drop_pos if self.__current_stack_count==0 else self.__index1_drop_pos)
                 self.__current_stack_count += 1
 
                 self.__control_gripper(GripperAction.OPEN)
 
                 # Move to home after piece is placed
                 self.__move_to_home()
+
+            if not self.__board_calibrated:
+                self.__calibrate_board()
 
             # Move the belt since 2 pieces were placed
             if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
@@ -204,7 +216,7 @@ class Robot:
         
         # Make sure belt does not move while taking the pieces
         with self.__belt_lock:
-            self.__move_to_pos(self.__index0_pos if self.__current_stack_count==1 else self.__index1_pos)
+            self.__move_to_pos(self.__index0_pick_pos if self.__current_stack_count==1 else self.__index1_pick_pos)
             self.__control_gripper(GripperAction.CLOSE)
             self.__move_to_home()
             self.__current_stack_count -= 1
@@ -309,6 +321,7 @@ class Robot:
 
     # This function calibrates the place of the game board
     def __calibrate_board(self):
+        self.grab_piece()
         # Calibrate board positions
         for board_row in self.__board_pos:
             self.__move_to_pos(board_row[0])
@@ -322,6 +335,16 @@ class Robot:
                 self.__move_to_pos(board_row[0])
 
         self.__move_to_home()
+
+        self.__current_stack_count += 1
+        self.__current_piece_count += 1
+
+        with self.__belt_lock:
+            self.__move_to_pos(self.__index0_pick_pos if self.__current_stack_count==1 else self.__index1_pick_pos)
+            self.__control_gripper(GripperAction.OPEN)
+
+            self.__move_to_home()
+
         self.__board_calibrated = True
 
     @contextmanager
