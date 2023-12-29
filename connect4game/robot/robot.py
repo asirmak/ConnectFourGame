@@ -141,12 +141,15 @@ class Robot:
     def set_up_game(self, piece_count=21):
         # Set up magazine if not already set up
         if not self.__magazine_ready:
-            self.__move_to_pos(self.__mag_pos_bef)
-            self.__move_to_pos(self.__mag_pos)
+            with self.__slow_arm_control():
+                self.__move_to_pos(self.__mag_pos_bef)
+                self.__move_to_pos(self.__mag_pos)
 
-            self.__logger.info("Magazine should be placed to the shown position by the robot")
-            self.__logger.info("Press enter to continue after the magazine is ready")
-            input()
+                self.__logger.info("Magazine should be placed to the shown position by the robot")
+                self.__logger.info("Press enter to continue after the magazine is ready")
+                input()
+
+                self.__move_to_pos(self.__mag_pos_bef)
 
             self.__move_to_home()
 
