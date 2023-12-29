@@ -3,8 +3,10 @@ import time
 from contextlib import contextmanager
 
 from enums import GripperAction
+from pyniryo import NiryoRobot as OldAPI
 from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
 from roslibpy.core import RosTimeoutError
+
 from connect4game.utils.logging import create_logger
 
 
@@ -74,6 +76,7 @@ class Robot:
         # Connect to robot
         try:
             self.__robot = NiryoRobot(robot_ip)
+            self.__old_api = OldAPI(robot_ip)
         except:
             self.__logger.critical("Robot connection failed, check if the ip addr is correct")
             raise
@@ -299,29 +302,46 @@ class Robot:
         )
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
 
-    def __control_gripper(self, action: GripperAction):
+    # Function for restarting gripper in case of hardware error
+    # Works well for overheating issue, still can cause unexpected behaviour
+    # with the robot, looks stupid but solves the issue
+    def __check_gripper_errors(self):
         try:
+            # Index for gripper error value
             tool_state = self.__arm.hardware_status.value.hardware_errors[7]
 
             # If tool has an error, reboot the tool until error state clears
             # I know this looks stupid but this is how it works in NiryoStudio
             while tool_state != 0:
-                self.__logger.warning("Gripper overheadted or run into an error, restarting gripper")
+                self.__logger.warning("Gripper overheated or run into an error, restarting gripper")
+                self.__execute_robot_action(
+                    self.__old_api.tool_reboot
+                )
+                
+                # Update the tool just in case
                 self.__execute_robot_action(
                     self.__tool.update_tool
                 )
+
+                # Wait for hardware state to update
+                time.sleep(5)
                 tool_state = self.__arm.hardware_status.value.hardware_errors[7]
         except IndexError:
-            self.__logger.info("Skipping hardware status checking for simulation since it does not exist")
+            self.__logger.warning("Gripper error status not readable, skip checking for gripper error")
+
+    def __control_gripper(self, action: GripperAction):
+        self.__check_gripper_errors()
         
-        if action == GripperAction.OPEN:
-            self.__execute_robot_action(
-                    self.__tool.release_with_tool
-            )
-        else:
+        if action == GripperAction.CLOSE:
             self.__execute_robot_action(
                     self.__tool.grasp_with_tool
             )
+        else:
+            self.__execute_robot_action(
+                    self.__tool.release_with_tool
+            )
+
+        self.__check_gripper_errors()
 
     # This function calibrates the place of the game board
     def __calibrate_board(self):
