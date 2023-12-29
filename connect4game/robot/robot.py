@@ -1,6 +1,7 @@
 import threading
 import time
 from contextlib import contextmanager
+from random import randrange
 
 from enums import GripperAction
 from pyniryo import NiryoRobot as OldAPI
@@ -439,10 +440,28 @@ def __robotTest(args):
     try:
         original_piece = args.piece
         robot_ethernet.set_up_game(piece_count=args.piece)
+
+        row_info = []
+
+        for i in range(4):
+            current_row = {"val": i, "times": 0}
+            row_info.append(current_row)
+
         while original_piece:
-            original_piece -= 1
             robot_ethernet.grab_piece()
-            robot_ethernet.drop_piece_to_board(0)
+
+            chosen_index = randrange(len(row_info))
+            chosen_row = row_info[chosen_index]["val"]
+
+            row_info[chosen_index]["times"] = row_info[chosen_index]["times"] + 1
+
+            if row_info[chosen_index]["times"] == 6:
+                row_info.pop(chosen_index)
+
+            original_piece -= 1
+
+            robot_ethernet.drop_piece_to_board(chosen_row)
+            # robot_ethernet.drop_piece_to_board(0)
         
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
