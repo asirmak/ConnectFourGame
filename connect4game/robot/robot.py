@@ -25,14 +25,14 @@ class Robot:
     )
 
     __mag_pos_bef = PoseObject(
-        x=0.099, y=-0.236, z=0.2,
-        roll=-3.137, pitch=1.245, yaw=3.085
+        x=0.107, y=-0.248, z=0.21,
+        roll=-2.947, pitch=1.242, yaw=-2.934
     )
 
     # 15.9 - 16.0 cm from first speaker hole
     __mag_pos = PoseObject(
-        x=0.093, y=-0.24, z=0.16,
-        roll=3.02, pitch=1.212, yaw=2.993
+        x=0.091, y=-0.254, z=0.161,
+        roll=3.125, pitch=1.186, yaw=3.1
     )
 
     # Location of the piece at index 0 on the belt (robot side)
