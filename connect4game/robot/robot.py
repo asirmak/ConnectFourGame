@@ -59,17 +59,52 @@ class Robot:
 
     # Board positions where the robot can drop the pieces to the lanes
     # Starting from 0 most right lane for the robot
+    # Board complex will be placed 6 cm from the robot (keep in mind the error rate on the 30 cm)
     __board_pos = (
         (
-            PoseObject(
-                x=0.168, y=0.314, z=0.223,
-                roll=-0.06, pitch=-0.016, yaw=1.551
+            # Row 0
+            (
+                0.855, -0.328, -0.339,
+                -0.948, 0.897, 0.692
             ),
-            PoseObject(
-                x=0.164, y=0.316, z=0.208,
-                roll=0.063, pitch=-0.006, yaw=1.546
+            (
+                0.866, -0.434, -0.393,
+                -0.982, 0.959, 0.634
             )
         ),
+        (
+            # Row 1
+            (
+                0.982, -0.225, -0.437,
+                -0.939, 0.854, 0.697
+            ),
+            (
+                0.967, -0.322, -0.492,
+                -0.96, 0.856, 0.692
+            )
+        ),
+        (
+            # Row 2
+            (
+                1.108, -0.167, -0.566,
+                -0.778, 0.778, 0.686
+            ),
+            (
+                1.108, -0.231, -0.59,
+                -0.768, 0.729, 0.686
+            )
+        ),
+        (
+            # Row 3
+            (
+                1.266, -0.108, -0.599,
+                -0.627, 0.601, 0.502
+            ),
+            (
+                1.276, -0.157, -0.696,
+                -0.529, 0.687, 0.374
+            )
+        )
     )
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
@@ -233,12 +268,12 @@ class Robot:
 
     # Drop the piece to the specified lane starting from 0
     def drop_piece_to_board(self, index):
-        self.__move_to_pos(self.__board_pos[index][0])
-        self.__move_to_pos(self.__board_pos[index][1])
+        self.__move_joints(self.__board_pos[index][0])
+        self.__move_joints(self.__board_pos[index][1])
 
         self.__control_gripper(GripperAction.OPEN)
 
-        self.__move_to_pos(self.__board_pos[index][0])
+        self.__move_joints(self.__board_pos[index][0])
         self.__move_to_home()
 
     # Function to end the control instance, must be called at the end
@@ -301,6 +336,12 @@ class Robot:
             self.__arm.move_pose, pos
         )
         self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
+    
+    def __move_joints(self, joints):
+        self.__execute_robot_action(
+            self.__arm.move_joints, joints
+        )
+        self.__logger.info(f"Moved joints to 1={joints[0]}, 2={joints[1]}, 3={joints[2]}, 4={joints[3]}, 5={joints[4]}, 6={joints[5]}")
 
     # Function for restarting gripper in case of hardware error
     # Works well for overheating issue, still can cause unexpected behaviour
@@ -348,15 +389,15 @@ class Robot:
         self.grab_piece()
         # Calibrate board positions
         for board_row in self.__board_pos:
-            self.__move_to_pos(board_row[0])
+            self.__move_joints(board_row[0])
             with self.__slow_arm_control():
-                self.__move_to_pos(board_row[1])
+                self.__move_joints(board_row[1])
 
                 # Wait for user confirmation
                 self.__logger.info("Waiting for you to adjust the game board, press enter to continue...")
                 input()
 
-                self.__move_to_pos(board_row[0])
+                self.__move_joints(board_row[0])
 
         self.__move_to_home()
 
