@@ -33,9 +33,14 @@ class Robot:
     )
 
     # 15.9 - 16.0 cm from first speaker hole
-    __mag_pos = PoseObject(
-        x=0.091, y=-0.254, z=0.161,
-        roll=3.125, pitch=1.186, yaw=3.1
+    # __mag_pos = PoseObject(
+    #     x=0.091, y=-0.254, z=0.161,
+    #     roll=3.125, pitch=1.186, yaw=3.1
+    # )
+
+    __mag_pos = (
+        -1.176, -0.4, -0.475,
+        -0.411, -0.933, -0.865
     )
 
     # Location of the piece at index 0 on the belt (robot side)
@@ -69,8 +74,8 @@ class Robot:
                 -0.948, 0.897, 0.692
             ),
             (
-                0.866, -0.434, -0.393,
-                -0.982, 0.959, 0.634
+                0.828, -0.446, -0.399,
+                -1.025, 1.026, 0.578
             )
         ),
         (
@@ -80,30 +85,63 @@ class Robot:
                 -0.939, 0.854, 0.697
             ),
             (
-                0.967, -0.322, -0.492,
-                -0.96, 0.856, 0.692
+                0.951, -0.338, -0.548,
+                -0.841, 0.945, 0.511
             )
         ),
         (
             # Row 2
             (
-                1.108, -0.167, -0.566,
-                -0.778, 0.778, 0.686
+                1.108, -0.185, -0.604,
+                -0.796, 0.862, 0.535
             ),
             (
-                1.108, -0.231, -0.59,
-                -0.768, 0.729, 0.686
+                1.093, -0.243, -0.669,
+                -0.73, 0.885, 0.419
             )
         ),
         (
             # Row 3
             (
-                1.266, -0.108, -0.599,
-                -0.627, 0.601, 0.502
+                1.236, -0.137, -0.704,
+                -0.581, 0.874, 0.425
             ),
             (
-                1.276, -0.157, -0.696,
-                -0.529, 0.687, 0.374
+                1.213, -0.19, -0.746,
+                -0.615, 0.876, 0.367
+            )
+        ),
+        (
+            # Row 4
+            (
+                1.419, -0.023, -0.778,
+                -0.39, 0.765, 0.246
+            ),
+            (
+                1.149, -0.129, -0.814,
+                -0.359, 0.827, 0.164
+            )
+        ),
+        (
+            # Row 5
+            (
+                1.595, -0.013, -0.808,
+                -0.181, 0.707, 0.137
+            ),
+            (
+                1.609, -0.075, -0.839,
+                -0.109, 0.706, 0.051
+            )
+        ),
+        (
+            # Row 6
+            (
+                1.77, -0.032, -0.804,
+                0.034, 0.778, -0.038
+            ),
+            (
+                1.816, -0.161, -0.857,
+                0.146, 0.951, -0.08
             )
         )
     )
@@ -191,7 +229,7 @@ class Robot:
             self.__move_to_pos(self.__mag_pos_bef)
 
             with self.__slow_arm_control():
-                self.__move_to_pos(self.__mag_pos)
+                self.__move_joints(self.__mag_pos)
 
                 self.__logger.info("Magazine should be placed to the shown position by the robot")
                 self.__logger.info("Press enter to continue after the magazine is ready")
@@ -215,7 +253,7 @@ class Robot:
 
             # Decrease arm speed for precise actions
             with self.__slow_arm_control():
-                self.__move_to_pos(self.__mag_pos)
+                self.__move_joints(self.__mag_pos)
             
                 self.__control_gripper(GripperAction.CLOSE)
 
@@ -280,6 +318,7 @@ class Robot:
     # Function to end the control instance, must be called at the end
     def end_robot(self):
         self.__robot.end()
+        self.__old_api.close_connection()
 
     # Move pieces on the belt
     def __move_pieces_on_belt(self, direction: ConveyorDirection):
@@ -443,7 +482,7 @@ def __robotTest(args):
 
         row_info = []
 
-        for i in range(4):
+        for i in range(7):
             current_row = {"val": i, "times": 0}
             row_info.append(current_row)
 
