@@ -331,7 +331,7 @@ class Robot:
     def __move_pieces_on_belt(self, direction: ConveyorDirection):
         with self.__belt_lock:
             move_time = 4.3
-            if ConveyorDirection.FORWARD:
+            if direction == ConveyorDirection.FORWARD:
                 move_time += 0.1
 
             self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
