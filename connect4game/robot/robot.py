@@ -63,88 +63,14 @@ class Robot:
         roll=0.0, pitch=1.55, yaw=0.0
     )
 
-    # Board positions where the robot can drop the pieces to the lanes
-    # Starting from 0 most right lane for the robot
     # Board complex will be placed 6 cm from the robot (keep in mind the error rate on the 30 cm)
-    __board_pos = (
-        (
-            # Row 0
-            (
-                0.855, -0.328, -0.339,
-                -0.948, 0.897, 0.692
-            ),
-            (
-                0.828, -0.446, -0.399,
-                -1.025, 1.026, 0.578
-            )
-        ),
-        (
-            # Row 1
-            (
-                0.982, -0.225, -0.437,
-                -0.939, 0.854, 0.697
-            ),
-            (
-                0.951, -0.338, -0.548,
-                -0.841, 0.945, 0.511
-            )
-        ),
-        (
-            # Row 2
-            (
-                1.108, -0.185, -0.604,
-                -0.796, 0.862, 0.535
-            ),
-            (
-                1.093, -0.243, -0.669,
-                -0.73, 0.885, 0.419
-            )
-        ),
-        (
-            # Row 3
-            (
-                1.236, -0.137, -0.704,
-                -0.581, 0.874, 0.425
-            ),
-            (
-                1.213, -0.19, -0.746,
-                -0.615, 0.876, 0.367
-            )
-        ),
-        (
-            # Row 4
-            (
-                1.419, -0.023, -0.778,
-                -0.39, 0.765, 0.246
-            ),
-            (
-                1.149, -0.129, -0.814,
-                -0.359, 0.827, 0.164
-            )
-        ),
-        (
-            # Row 5
-            (
-                1.595, -0.013, -0.808,
-                -0.181, 0.707, 0.137
-            ),
-            (
-                1.609, -0.075, -0.839,
-                -0.109, 0.706, 0.051
-            )
-        ),
-        (
-            # Row 6
-            (
-                1.77, -0.032, -0.804,
-                0.034, 0.778, -0.038
-            ),
-            (
-                1.816, -0.161, -0.857,
-                0.146, 0.951, -0.08
-            )
-        )
+    # Pre pos for the first row, move -0.05 on x for the next rows
+    # For lining up the piece move -0.05 on z axis
+    __board_ref = PoseObject(
+            x=0.184, y=0.259, z=0.258,
+            roll=0, pitch=0, yaw=1.65
     )
+    __board_move_rel = -0.05
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
         # Connect to robot
@@ -312,12 +238,27 @@ class Robot:
 
     # Drop the piece to the specified lane starting from 0
     def drop_piece_to_board(self, index):
-        self.__move_joints(self.__board_pos[index][0])
-        self.__move_joints(self.__board_pos[index][1])
+        if index > 6 or index < 0:
+            self.__logger.error(f"Index {index} is an invalid position for the game board. Use a value between 0-6")
+            raise IndexError("Use a value between 0-6")
+        
+        self.__logger.info(f"Trying to place the piece on game board row {index}")
+
+        current_rel = self.__board_move_rel * index
+        if current_rel != 0:
+            pos_to_move = PoseObject(
+                x=self.__board_ref.x + current_rel, y=self.__board_ref.y, z=self.__board_ref.z,
+                roll=self.__board_ref.roll, pitch=self.__board_ref.pitch, yaw=self.__board_ref.yaw
+            )
+        else:
+            pos_to_move = self.__board_ref
+
+        self.__move_to_pos(pos_to_move)
+        self.__move_relative_linear([0, 0, self.__board_move_rel, 0, 0, 0])
 
         self.__control_gripper(GripperAction.OPEN)
 
-        self.__move_joints(self.__board_pos[index][0])
+        self.__move_relative_linear([0, 0, -self.__board_move_rel, 0, 0, 0])
         self.__move_to_home()
 
     # Function to end the control instance, must be called at the end
@@ -387,69 +328,129 @@ class Robot:
         self.__execute_robot_action(
             self.__arm.move_pose, pos
         )
-        self.__logger.info(f"Moved to position x={pos.x}, y={pos.y}, z={pos.z}, roll={pos.roll}, pitch={pos.pitch}, yaw={pos.yaw}")
+        self.__logger.debug(
+            f"Moved to position x={pos.x} y={pos.y} z={pos.z} "
+            f"roll={pos.roll} pitch={pos.pitch} yaw={pos.yaw}"
+        )
+
+    def __move_relative_linear(self, relative_arr: list):
+        if len(relative_arr) != 6:
+            raise TypeError
+
+        self.__execute_robot_action(
+            self.__arm.move_linear_relative, relative_arr
+        )
+        self.__logger.debug(
+            "Moved relative to current position by "
+            f"x->{relative_arr[0]} y->{relative_arr[1]} z->{relative_arr[2]} "
+            f"roll->{relative_arr[3]} pitch->{relative_arr[4]} yaw->{relative_arr[5]}"
+        )
     
     def __move_joints(self, joints):
         self.__execute_robot_action(
             self.__arm.move_joints, joints
         )
-        self.__logger.info(f"Moved joints to 1={joints[0]}, 2={joints[1]}, 3={joints[2]}, 4={joints[3]}, 5={joints[4]}, 6={joints[5]}")
+        self.__logger.debug(
+            f"Moved joints to 1={joints[0]}, 2={joints[1]}, 3={joints[2]}, "
+            f"4={joints[3]}, 5={joints[4]}, 6={joints[5]}"
+        )
 
     # Function for restarting gripper in case of hardware error
     # Works well for overheating issue, still can cause unexpected behaviour
     # with the robot, looks stupid but solves the issue
-    def __check_gripper_errors(self):
+    def __check_gripper_errors(self) -> bool:
+        result = False
         try:
             # Index for gripper error value
             tool_state = self.__arm.hardware_status.value.hardware_errors[7]
-
-            # If tool has an error, reboot the tool until error state clears
-            # I know this looks stupid but this is how it works in NiryoStudio
-            while tool_state != 0:
-                self.__logger.warning("Gripper overheated or run into an error, restarting gripper")
-                self.__execute_robot_action(
-                    self.__old_api.tool_reboot
-                )
-                
-                # Update the tool just in case
-                self.__execute_robot_action(
-                    self.__tool.update_tool
-                )
-
-                # Wait for hardware state to update
-                time.sleep(5)
-                tool_state = self.__arm.hardware_status.value.hardware_errors[7]
         except IndexError:
+            # While using the simulation this value might not be present
+            # If not present give a warning and skip checking for gripper errors
             self.__logger.warning("Gripper error status not readable, skip checking for gripper error")
+            return False
+
+        # If tool has an error, reboot the tool until error state clears
+        # I know this looks stupid but this is how it works in NiryoStudio
+        while tool_state != 0:
+            self.__logger.warning("Gripper overheated or run into an error, restarting gripper")
+
+            # Adjust the return result
+            result = True
+
+            # Reboot the tool using the old api
+            # This function is not present in the new one
+            self.__execute_robot_action(
+                self.__old_api.tool_reboot
+            )
+            
+            # Update the tool just in case
+            self.__execute_robot_action(
+                self.__tool.update_tool
+            )
+
+            # Wait for hardware state to update
+            time.sleep(5)
+
+            try:
+                tool_state = self.__arm.hardware_status.value.hardware_errors[7]
+            except IndexError:
+                self.__logger.warning("Gripper error status not readable after tool reboot")
+                return True
+
+        return result
 
     def __control_gripper(self, action: GripperAction):
+        # Check for gripper errors before doing anything
+        # Disregard the result
         self.__check_gripper_errors()
         
-        if action == GripperAction.CLOSE:
-            self.__execute_robot_action(
-                    self.__tool.grasp_with_tool
-            )
-        else:
-            self.__execute_robot_action(
-                    self.__tool.release_with_tool
-            )
+        while True:
+            if action == GripperAction.CLOSE:
+                self.__execute_robot_action(
+                        self.__tool.grasp_with_tool
+                )
 
-        self.__check_gripper_errors()
+                self.__logger.debug("Gripper close action done")
+            else:
+                self.__execute_robot_action(
+                        self.__tool.release_with_tool
+                )
+
+                self.__logger.debug("Gripper open action done")
+
+            error_status = self.__check_gripper_errors()
+            # TODO Block the execution properly
+            if error_status:
+                self.__logger.warning("Error state after gripper command execution")
+                self.__logger.warning("Do you want to retry the action? y/N")
+                answ = input()
+                answ = answ.upper()
+                if answ.startswith("Y"):
+                    continue
+            
+            break
 
     # This function calibrates the place of the game board
     def __calibrate_board(self):
+        # Grab the first piece for calibration
         self.grab_piece()
+
         # Calibrate board positions
-        for board_row in self.__board_pos:
-            self.__move_joints(board_row[0])
+        self.__move_to_pos(self.__board_ref)
+        for row in range(7):
+            self.__logger.info(f"Currently calibrating row {row}")
+
+            if row != 0:
+                self.__move_relative_linear([self.__board_move_rel, 0, 0, 0, 0, 0])
+            
             with self.__slow_arm_control():
-                self.__move_joints(board_row[1])
+                self.__move_relative_linear([0, 0, self.__board_move_rel, 0, 0, 0])
 
                 # Wait for user confirmation
                 self.__logger.info("Waiting for you to adjust the game board, press enter to continue...")
                 input()
 
-                self.__move_joints(board_row[0])
+                self.__move_relative_linear([0, 0, -self.__board_move_rel, 0, 0, 0])
 
         self.__move_to_home()
 
