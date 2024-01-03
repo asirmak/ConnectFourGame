@@ -352,7 +352,6 @@ class Robot:
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __execute_robot_action(self, action, *args):
-        action_retry = True
         result = None
 
         # If this is a function get its name
@@ -362,10 +361,9 @@ class Robot:
         except AttributeError:
             name = None
         
-        while action_retry:
+        while True:
             try:
                 result = action(*args)
-                action_retry = False
             except TypeError:
                 self.__logger.critical("You did a coding error, do not pass function call instead pass a function reference")
                 raise
@@ -374,6 +372,9 @@ class Robot:
                 # TODO in the future maybe add a retry limit
                 self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {'...' if name is None else name}")
                 continue
+            
+            break
+
         return result
 
     # Function for moving back to the home pose
