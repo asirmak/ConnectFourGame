@@ -163,16 +163,11 @@ class Robot:
             )
             self.__logger.info("Arm is calibrated and ready to use")
 
-            # Detect the currently attached tool
+            # Detect the gripper
             self.__tool = self.__robot.tool
             self.__execute_robot_action(
                 self.__tool.update_tool
             )
-            current_tool_id = self.__execute_robot_action(
-                self.__tool.get_current_tool_id
-            )
-            if current_tool_id not in [ToolID.GRIPPER_1, ToolID.GRIPPER_2, ToolID.GRIPPER_3, ToolID.GRIPPER_4]:
-                self.__logger.error("Gripper not detected! Ignore this if running in simulation mode")
             # Open the gripper
             self.__control_gripper(GripperAction.OPEN)
             self.__logger.info("Gripper is ready to use")
