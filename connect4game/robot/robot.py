@@ -5,7 +5,7 @@ from random import randrange
 
 from enums import GripperAction
 from pyniryo import NiryoRobot as OldAPI
-from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject, ToolID
+from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject
 from roslibpy.core import RosTimeoutError
 
 from connect4game.utils.logging import create_logger
@@ -80,7 +80,7 @@ class Robot:
         except:
             self.__logger.critical("Robot connection failed, check if the ip addr is correct")
             raise
-        
+
         try:
             # Calibrate the robot
             self.__arm = self.__robot.arm
@@ -111,7 +111,7 @@ class Robot:
             # If any error happens during the calibration, end the robot so the code does not hang
             self.end_robot()
             raise
-        
+
         # A lock to use the belt
         self.__belt_lock = threading.Lock()
 
@@ -129,7 +129,7 @@ class Robot:
     @property
     def get_piece_count(self):
         return self.__current_piece_count
-    
+
     # Returns the current count of piece left on the stack
     @property
     def get_stack_count(self):
@@ -142,7 +142,7 @@ class Robot:
     @property
     def get_magazine_status(self):
         return self.__magazine_ready
-    
+
     # Belt set up function to place the piece on the belt before the game starts
     def set_up_game(self, piece_count=21):
         # Set up magazine if not already set up
@@ -164,7 +164,7 @@ class Robot:
 
         while self.__current_piece_count != piece_count:
             self.__logger.info(f"Currently setting up piece {self.__current_piece_count}")
-            
+
             # Determine which place to show to the user
             self.__logger.info(f"This piece will be placed on position {self.__current_stack_count + 1}")
             self.__current_piece_count += 1
@@ -175,7 +175,7 @@ class Robot:
             # Decrease arm speed for precise actions
             with self.__slow_arm_control():
                 self.__move_joints(self.__mag_pos)
-            
+
                 self.__control_gripper(GripperAction.CLOSE)
 
                 self.__move_to_pos(self.__mag_pos_bef)
@@ -209,7 +209,7 @@ class Robot:
                 self.__current_stack_count = 0
                 belt_action = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
                 belt_action.start()
-    
+
     # Grab the next piece, which piece to grab is calculated by itself
     def grab_piece(self):
         self.__logger.info("Grabing the next piece")
@@ -217,7 +217,7 @@ class Robot:
         # If there are no pieces left on the belt don't do anything
         if self.__current_piece_count == 0:
             return
-        
+
         # Make sure belt does not move while taking the pieces
         with self.__belt_lock:
             self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
@@ -229,7 +229,7 @@ class Robot:
             self.__current_piece_count -= 1
 
             self.__logger.debug(f"Belt lock removed by thread {threading.get_ident()}")
-        
+
         # If stack is empty then move the new stones on the belt async
         if self.__current_stack_count == 0 and self.__current_piece_count != 0:
             self.__current_stack_count = 2
@@ -241,7 +241,7 @@ class Robot:
         if index > 6 or index < 0:
             self.__logger.error(f"Index {index} is an invalid position for the game board. Use a value between 0-6")
             raise IndexError("Use a value between 0-6")
-        
+
         self.__logger.info(f"Trying to place the piece on game board row {index}")
 
         current_rel = self.__board_move_rel * index
@@ -277,7 +277,7 @@ class Robot:
 
             self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
             self.__logger.info(
-                "Conveyor belt is currently moving in the " 
+                "Conveyor belt is currently moving in the "
                 f"{'backward' if direction == ConveyorDirection.BACKWARD else 'forward'} direction"
             )
 
@@ -301,7 +301,7 @@ class Robot:
             name = action.__name__
         except AttributeError:
             name = None
-        
+
         while True:
             try:
                 result = action(*args)
@@ -313,7 +313,7 @@ class Robot:
                 # TODO in the future maybe add a retry limit
                 self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {'...' if name is None else name}")
                 continue
-            
+
             break
 
         return result
@@ -345,7 +345,7 @@ class Robot:
             f"x->{relative_arr[0]} y->{relative_arr[1]} z->{relative_arr[2]} "
             f"roll->{relative_arr[3]} pitch->{relative_arr[4]} yaw->{relative_arr[5]}"
         )
-    
+
     def __move_joints(self, joints):
         self.__execute_robot_action(
             self.__arm.move_joints, joints
@@ -382,7 +382,7 @@ class Robot:
             self.__execute_robot_action(
                 self.__old_api.tool_reboot
             )
-            
+
             # Update the tool just in case
             self.__execute_robot_action(
                 self.__tool.update_tool
@@ -403,7 +403,7 @@ class Robot:
         # Check for gripper errors before doing anything
         # Disregard the result
         self.__check_gripper_errors()
-        
+
         while True:
             if action == GripperAction.CLOSE:
                 self.__execute_robot_action(
@@ -427,7 +427,7 @@ class Robot:
                 answ = answ.upper()
                 if answ.startswith("Y"):
                     continue
-            
+
             break
 
     # This function calibrates the place of the game board
@@ -442,7 +442,7 @@ class Robot:
 
             if row != 0:
                 self.__move_relative_linear([self.__board_move_rel, 0, 0, 0, 0, 0])
-            
+
             with self.__slow_arm_control():
                 self.__move_relative_linear([0, 0, self.__board_move_rel, 0, 0, 0])
 
@@ -488,7 +488,7 @@ class Robot:
 # Test function for robot
 def __robotTest(args):
     test_logger = create_logger("ROBOT_TEST")
-    
+
     try:
         robot_ethernet = Robot(args.ip)
     except:
@@ -520,7 +520,7 @@ def __robotTest(args):
 
             robot_ethernet.drop_piece_to_board(chosen_row)
             # robot_ethernet.drop_piece_to_board(0)
-        
+
     except KeyboardInterrupt:
         test_logger.info("Program ended with keyboard interrupt")
         sys.exit(130)
@@ -535,7 +535,7 @@ if __name__ == "__main__":
 
     # Options ip argument for connecting to other robots, such as the simulation
     parser.add_argument(
-        "--ip", 
+        "--ip",
         type=str,
         help="ip addr for robot, defaults to ethernet ip",
         default="169.254.200.200"
