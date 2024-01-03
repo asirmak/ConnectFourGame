@@ -177,7 +177,7 @@ class Robot:
             self.__conveyor_id = self.__execute_robot_action(
                 self.__conveyor.set_conveyor
             )
-            self.__logger.info("Conveyer belt ready to use")
+            self.__logger.info("Conveyer belt is ready to use")
 
             # Move robot to its default position
             self.__move_to_home()
@@ -261,7 +261,8 @@ class Robot:
 
             # Acquire belt control to place the piece
             with self.__belt_lock:
-                self.__logger.info("Belt locked for placing the piece")
+                self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
+
                 self.__move_to_pos(self.__index0_drop_pos if self.__current_stack_count==0 else self.__index1_drop_pos)
                 self.__current_stack_count += 1
 
@@ -270,29 +271,38 @@ class Robot:
                 # Move to home after piece is placed
                 self.__move_to_home()
 
+                self.__logger.debug(f"Belt lock removed by thread {threading.get_ident()}")
+
             if not self.__board_calibrated:
                 self.__calibrate_board()
 
             # Move the belt since 2 pieces were placed
             if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
                 self.__logger.info("Piece stack full moving pieces to the left")
+
                 self.__current_stack_count = 0
                 belt_action = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
                 belt_action.start()
     
     # Grab the next piece, which piece to grab is calculated by itself
     def grab_piece(self):
+        self.__logger.info("Grabing the next piece")
+
         # If there are no pieces left on the belt don't do anything
         if self.__current_piece_count == 0:
             return
         
         # Make sure belt does not move while taking the pieces
         with self.__belt_lock:
+            self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
+
             self.__move_to_pos(self.__index0_pick_pos if self.__current_stack_count==1 else self.__index1_pick_pos)
             self.__control_gripper(GripperAction.CLOSE)
             self.__move_to_home()
             self.__current_stack_count -= 1
             self.__current_piece_count -= 1
+
+            self.__logger.debug(f"Belt lock removed by thread {threading.get_ident()}")
         
         # If stack is empty then move the new stones on the belt async
         if self.__current_stack_count == 0 and self.__current_piece_count != 0:
@@ -312,6 +322,8 @@ class Robot:
 
     # Function to end the control instance, must be called at the end
     def end_robot(self):
+        self.__logger.info("Closing all robot connections")
+
         self.__robot.end()
         self.__old_api.close_connection()
 
@@ -322,9 +334,11 @@ class Robot:
             if ConveyorDirection.FORWARD:
                 move_time += 0.1
 
-            self.__logger.info(f"Belt locked by thread {threading.get_ident()}")
-            log_dirct = "left" if ConveyorDirection.BACKWARD else "right"
-            self.__logger.info(f"Conveyor belt is currently moving to the {log_dirct}")
+            self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
+            self.__logger.info(
+                "Conveyor belt is currently moving in the " 
+                f"{'backward' if direction == ConveyorDirection.BACKWARD else 'forward'} direction"
+            )
 
             self.__execute_robot_action(
                 self.__conveyor.run_conveyor, self.__conveyor_id, 15, direction
@@ -334,12 +348,15 @@ class Robot:
                 self.__conveyor.stop_conveyor, self.__conveyor_id
             )
 
-            self.__logger.info(f"Belt locked removed by thread {threading.get_ident()}")
+            self.__logger.debug(f"Belt lock removed by thread {threading.get_ident()}")
 
     # work around ros timing bug where the robot fails sometimes for no reason
     def __execute_robot_action(self, action, *args):
         action_retry = True
         result = None
+
+        # If this is a function get its name
+        # If this is not a function (property) ignore the name since it will throw an exception
         try:
             name = action.__name__
         except AttributeError:
@@ -355,8 +372,7 @@ class Robot:
             except RosTimeoutError:
                 # robot internal bug safe to ignore
                 # TODO in the future maybe add a retry limit
-                three_dot = "..."
-                self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {three_dot if name is None else name}")
+                self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {'...' if name is None else name}")
                 continue
         return result
 
@@ -440,6 +456,7 @@ class Robot:
         self.__current_piece_count += 1
 
         with self.__belt_lock:
+            self.__logger.debug("Belt locked to place back the piece")
             self.__move_to_pos(self.__index0_pick_pos if self.__current_stack_count==1 else self.__index1_pick_pos)
             self.__control_gripper(GripperAction.OPEN)
 
@@ -453,12 +470,17 @@ class Robot:
         self.__execute_robot_action(
             slow_arm.set_arm_max_velocity, slow_speed
         )
+
+        self.__logger.debug(f"Arm max speed changed to {slow_speed}%")
+
         try:
             yield slow_arm
         finally:
             self.__execute_robot_action(
                 slow_arm.set_arm_max_velocity, 100
             )
+
+            self.__logger.debug("Arm max speed changed back to 100%")
 
 # TODO Implement unittest later
 # Test function for robot
