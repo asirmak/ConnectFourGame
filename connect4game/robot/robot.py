@@ -12,74 +12,71 @@ from connect4game.utils.logging import create_logger
 
 
 class Robot:
-    # Constant variables
-
-    # Logger for the robot
-    __logger = create_logger(
-        name="ROBOT"
-    )
-
-    # Positions of certain objects
-
+    # In the PoseObjects bellow there are some constant position for certain situations
     # Better pos for robot when it should stay idle, got the pos from NiryoStudio
-    __better_home_pos = PoseObject(
+    __BETTER_HOME_POS = PoseObject(
         x=0.14, y=0, z=0.203,
         roll=0, pitch=0.759, yaw=0
     )
 
-    __mag_pos_bef = PoseObject(
-        x=0.107, y=-0.248, z=0.21,
-        roll=-2.947, pitch=1.242, yaw=-2.934
+    # Position for the magazine before it reaches it out
+    __MAG_PRE_POS = PoseObject(
+        x=0.115, y=-0.232, z=0.258,
+        roll=-2.776, pitch=1.077, yaw=-2.773
     )
 
-    # 15.9 - 16.0 cm from first speaker hole
-    # __mag_pos = PoseObject(
-    #     x=0.091, y=-0.254, z=0.161,
-    #     roll=3.125, pitch=1.186, yaw=3.1
-    # )
-
-    __mag_pos = (
-        -1.176, -0.4, -0.475,
-        -0.411, -0.933, -0.865
-    )
-
+    # Piece position on the belt
+    # TODO Reconsider keeping the pick pos it might not be needed anymore
     # Location of the piece at index 0 on the belt (robot side)
-    __index0_drop_pos = PoseObject(
+    __INDEX0_DROP_POS = PoseObject(
         x=0.125, y=0.0, z=0.152,
         roll=0.0, pitch=1.55, yaw=0
     )
-    __index0_pick_pos = PoseObject(
+    __INDEX0_PICK_POS = PoseObject(
         x=0.136, y=0.0, z=0.152,
         roll=0.0, pitch=1.55, yaw=0.0
     )
 
     # Location of the piece at index 1 on the belt (far side)
-    __index1_drop_pos = PoseObject(
+    __INDEX1_DROP_POS = PoseObject(
         x=0.186, y=0.0, z=0.15,
         roll=0.0, pitch=1.55, yaw=0
     )
-    __index1_pick_pos = PoseObject(
+    __INDEX1_PICK_POS = PoseObject(
         x=0.196, y=0.0, z=0.15,
         roll=0.0, pitch=1.55, yaw=0.0
     )
 
-    # Board complex will be placed 6 cm from the robot (keep in mind the error rate on the 30 cm)
-    # Pre pos for the first row, move -0.05 on x for the next rows
-    # For lining up the piece move -0.05 on z axis
-    __board_ref = PoseObject(
-            x=0.184, y=0.259, z=0.258,
-            roll=0, pitch=0, yaw=1.65
+    # Board ref position to set up the game board
+    # This position is used only one time during the initial set up
+    __BOARD_REF = PoseObject(
+            x=0.070, y=0.200, z=0.345,
+            roll=0, pitch=0, yaw=1.576
     )
-    __board_move_rel = -0.05
+    # Constants for moving linearly on the x and y axises of the gameboard rows
+    __BOARD_MOVE_REL_X = -0.042
+    __BOARD_MOVE_REL_Y = -0.050
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
+        # Logger for the robot
+        self.__logger = create_logger(
+            name="ROBOT"
+        )
+
         # Connect to robot
         try:
+            # Pyniryo2 api for controlling the robot
             self.__robot = NiryoRobot(robot_ip)
+
+            # Old pyniryo api for rebooting the tool
             self.__old_api = OldAPI(robot_ip)
         except:
-            self.__logger.critical("Robot connection failed, check if the ip addr is correct")
+            self.__logger.critical("Robot api connection failed, check if the ip addr is correct")
             raise
+
+        self.__logger.info("Robot arm calibration will begin in 5 seconds")
+        self.__logger.info("Make sure the area around the robot is clear")
+        time.sleep(5)
 
         try:
             # Calibrate the robot
@@ -87,6 +84,8 @@ class Robot:
             self.__execute_robot_action(
                 self.__arm.calibrate_auto
             )
+            # Move robot to its default position
+            self.__move_to_home()
             self.__logger.info("Arm is calibrated and ready to use")
 
             # Detect the gripper
@@ -104,11 +103,10 @@ class Robot:
                 self.__conveyor.set_conveyor
             )
             self.__logger.info("Conveyer belt is ready to use")
-
-            # Move robot to its default position
-            self.__move_to_home()
         except:
-            # If any error happens during the calibration, end the robot so the code does not hang
+            self.__logger.critical("Robot calibration failed!")
+
+            # If any error happens during the calibration close the api connections
             self.end_robot()
             raise
 
@@ -121,9 +119,11 @@ class Robot:
         # Piece of left on the current stack can be (0, 1, 2)
         self.__current_stack_count = 0
 
-        self.__board_calibrated = False
+        # Stores the position of the magazine
+        self.__mag_pos = None
 
-        self.__magazine_ready = False
+        # Stores the postiion of the first gameboard row
+        self.__board_first_pos = None
 
     # Returns the current total left pieces on the belt
     @property
@@ -136,31 +136,19 @@ class Robot:
         return self.__current_stack_count
 
     @property
-    def get_board_status(self):
-        return self.__board_calibrated
+    def is_board_rdy(self):
+        return self.__board_first_pos is not None
 
     @property
-    def get_magazine_status(self):
-        return self.__magazine_ready
+    def is_mag_rdy(self):
+        return self.__mag_pos is not None
 
-    # Belt set up function to place the piece on the belt before the game starts
+    # Sets up the game, should be called before a game starts
+    # This function makes sure that all pieces are ready on the belt, magazine is ready and the game board is calibrated
     def set_up_game(self, piece_count=21):
         # Set up magazine if not already set up
-        if not self.__magazine_ready:
-            self.__move_to_pos(self.__mag_pos_bef)
-
-            with self.__slow_arm_control():
-                self.__move_joints(self.__mag_pos)
-
-                self.__logger.info("Magazine should be placed to the shown position by the robot")
-                self.__logger.info("Press enter to continue after the magazine is ready")
-                input()
-
-                self.__move_to_pos(self.__mag_pos_bef)
-
-            self.__move_to_home()
-
-            self.__magazine_ready = True
+        if not self.is_mag_rdy:
+            self.__calibrate_mag()
 
         while self.__current_piece_count != piece_count:
             self.__logger.info(f"Currently setting up piece {self.__current_piece_count}")
@@ -170,15 +158,15 @@ class Robot:
             self.__current_piece_count += 1
 
             # Move to magazine to grab a piece
-            self.__move_to_pos(self.__mag_pos_bef)
+            self.__move_to_pos(self.__MAG_PRE_POS)
 
             # Decrease arm speed for precise actions
             with self.__slow_arm_control():
-                self.__move_joints(self.__mag_pos)
+                self.__move_to_pos(self.__mag_pos)
 
                 self.__control_gripper(GripperAction.CLOSE)
 
-                self.__move_to_pos(self.__mag_pos_bef)
+                self.__move_to_pos(self.__MAG_PRE_POS)
 
             # Wait because garbage api decides to execute the next action without completing the first one
             time.sleep(2)
@@ -189,7 +177,7 @@ class Robot:
             with self.__belt_lock:
                 self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
 
-                self.__move_to_pos(self.__index0_drop_pos if self.__current_stack_count==0 else self.__index1_drop_pos)
+                self.__move_to_pos(self.__INDEX0_DROP_POS if self.__current_stack_count==0 else self.__INDEX1_DROP_POS)
                 self.__current_stack_count += 1
 
                 self.__control_gripper(GripperAction.OPEN)
@@ -199,10 +187,11 @@ class Robot:
 
                 self.__logger.debug(f"Belt lock removed by thread {threading.get_ident()}")
 
-            if not self.__board_calibrated:
+            # With the first piece calibrate the gameboard
+            if not self.is_board_rdy:
                 self.__calibrate_board()
 
-            # Move the belt since 2 pieces were placed
+            # Move the belt if 2 piece stack is full
             if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
                 self.__logger.info("Piece stack full moving pieces to the left")
 
@@ -210,19 +199,20 @@ class Robot:
                 belt_action = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
                 belt_action.start()
 
-    # Grab the next piece, which piece to grab is calculated by itself
+    # Grab the next piece, which piece to grab is calculated automatically
     def grab_piece(self):
         self.__logger.info("Grabing the next piece")
 
         # If there are no pieces left on the belt don't do anything
         if self.__current_piece_count == 0:
+            self.__logger.warning("There are no pieces on the belt!")
             return
 
         # Make sure belt does not move while taking the pieces
         with self.__belt_lock:
             self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
 
-            self.__move_to_pos(self.__index0_pick_pos if self.__current_stack_count==1 else self.__index1_pick_pos)
+            self.__move_to_pos(self.__INDEX0_PICK_POS if self.__current_stack_count==1 else self.__INDEX1_PICK_POS)
             self.__control_gripper(GripperAction.CLOSE)
             self.__move_to_home()
             self.__current_stack_count -= 1
@@ -236,7 +226,14 @@ class Robot:
             belt_thread = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.FORWARD,))
             belt_thread.start()
 
-    # Drop the piece to the specified lane starting from 0
+        self.__logger.info("Piece grabing action finished")
+        self.__logger.info(
+            "Currently there"
+            f"{' is 1 piece' if self.__current_stack_count == 1 else f' are {self.__current_stack_count} pieces'} remaining on the stack"
+            f" and there {'is 1 piece' if self.__current_piece_count == 1 else f' are {self.__current_piece_count} pieces'} remaining in total"
+        )
+
+    # Drop the piece to the specified lane starting from 0 upto 6
     def drop_piece_to_board(self, index):
         if index > 6 or index < 0:
             self.__logger.error(f"Index {index} is an invalid position for the game board. Use a value between 0-6")
@@ -244,26 +241,30 @@ class Robot:
 
         self.__logger.info(f"Trying to place the piece on game board row {index}")
 
-        current_rel = self.__board_move_rel * index
-        if current_rel != 0:
-            pos_to_move = PoseObject(
-                x=self.__board_ref.x + current_rel, y=self.__board_ref.y, z=self.__board_ref.z,
-                roll=self.__board_ref.roll, pitch=self.__board_ref.pitch, yaw=self.__board_ref.yaw
-            )
-        else:
-            pos_to_move = self.__board_ref
+        # Distance to the row in x axis from the first row
+        current_rel = self.__BOARD_MOVE_REL_X * index
+        row_pos = PoseObject(
+            x=self.__board_first_pos.x + current_rel, y=self.__board_first_pos.y, z=self.__board_first_pos.z,
+            roll=self.__board_first_pos.roll, pitch=self.__board_first_pos.pitch, yaw=self.__board_first_pos.yaw
+        )
 
-        self.__move_to_pos(pos_to_move)
-        self.__move_relative_linear([0, 0, self.__board_move_rel, 0, 0, 0])
+        # Move towards to the row
+        self.__move_to_pos(row_pos)
 
+        # Get down to the row
+        self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+
+        # Drop the piece to the row
         self.__control_gripper(GripperAction.OPEN)
 
-        self.__move_relative_linear([0, 0, -self.__board_move_rel, 0, 0, 0])
+        # Get up from the row
+        self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+
         self.__move_to_home()
 
     # Function to end the control instance, must be called at the end
     def end_robot(self):
-        self.__logger.info("Closing all robot connections")
+        self.__logger.info("Closing all robot api connections")
 
         self.__robot.end()
         self.__old_api.close_connection()
@@ -271,10 +272,6 @@ class Robot:
     # Move pieces on the belt
     def __move_pieces_on_belt(self, direction: ConveyorDirection):
         with self.__belt_lock:
-            move_time = 4.3
-            if direction == ConveyorDirection.FORWARD:
-                move_time += 0.1
-
             self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
             self.__logger.info(
                 "Conveyor belt is currently moving in the "
@@ -284,7 +281,7 @@ class Robot:
             self.__execute_robot_action(
                 self.__conveyor.run_conveyor, self.__conveyor_id, 15, direction
             )
-            time.sleep(move_time)
+            time.sleep(4.3)
             self.__execute_robot_action(
                 self.__conveyor.stop_conveyor, self.__conveyor_id
             )
@@ -313,14 +310,12 @@ class Robot:
                 # TODO in the future maybe add a retry limit
                 self.__logger.warning(f"Robot internal timing bug, safe to ignore, retrying action {'...' if name is None else name}")
                 continue
-
             break
-
         return result
 
     # Function for moving back to the home pose
     def __move_to_home(self):
-        self.__move_to_pos(self.__better_home_pos)
+        self.__move_to_pos(self.__BETTER_HOME_POS)
         self.__logger.info("Moved to home position")
 
     # Move robot to specified position
@@ -328,15 +323,13 @@ class Robot:
         self.__execute_robot_action(
             self.__arm.move_pose, pos
         )
+        
         self.__logger.debug(
             f"Moved to position x={pos.x} y={pos.y} z={pos.z} "
             f"roll={pos.roll} pitch={pos.pitch} yaw={pos.yaw}"
         )
 
     def __move_relative_linear(self, relative_arr: list):
-        if len(relative_arr) != 6:
-            raise TypeError
-
         self.__execute_robot_action(
             self.__arm.move_linear_relative, relative_arr
         )
@@ -344,15 +337,6 @@ class Robot:
             "Moved relative to current position by "
             f"x->{relative_arr[0]} y->{relative_arr[1]} z->{relative_arr[2]} "
             f"roll->{relative_arr[3]} pitch->{relative_arr[4]} yaw->{relative_arr[5]}"
-        )
-
-    def __move_joints(self, joints):
-        self.__execute_robot_action(
-            self.__arm.move_joints, joints
-        )
-        self.__logger.debug(
-            f"Moved joints to 1={joints[0]}, 2={joints[1]}, 3={joints[2]}, "
-            f"4={joints[3]}, 5={joints[4]}, 6={joints[5]}"
         )
 
     # Function for restarting gripper in case of hardware error
@@ -374,7 +358,7 @@ class Robot:
         while tool_state != 0:
             self.__logger.warning("Gripper overheated or run into an error, restarting gripper")
 
-            # Adjust the return result
+            # Declare there was an error with the gripper
             result = True
 
             # Reboot the tool using the old api
@@ -401,7 +385,7 @@ class Robot:
 
     def __control_gripper(self, action: GripperAction):
         # Check for gripper errors before doing anything
-        # Disregard the result
+        # Disregard the result during the first check since the function will fix it already
         self.__check_gripper_errors()
 
         while True:
@@ -418,6 +402,8 @@ class Robot:
 
                 self.__logger.debug("Gripper open action done")
 
+            # Gripper could fail during the execution of the action resulting in weird behaviour with the robot
+            # That is why this check is present here
             error_status = self.__check_gripper_errors()
             # TODO Block the execution properly
             if error_status:
@@ -427,8 +413,26 @@ class Robot:
                 answ = answ.upper()
                 if answ.startswith("Y"):
                     continue
-
             break
+
+    def __calibrate_mag(self):
+        self.__move_to_pos(self.__MAG_PRE_POS)
+
+        with self.__slow_arm_control():
+            self.__logger.info("Move robot arm using freemove to the magazine")
+            self.__logger.info("Press enter to continue after the magazine is ready")
+            input()
+
+            # Save the shown magazine position
+            self.__mag_pos = self.__execute_robot_action(
+                self.__arm.get_pose
+            )
+
+            self.__logger.info("Saved current magazine position")
+
+            self.__move_to_pos(self.__MAG_PRE_POS)
+
+        self.__move_to_home()
 
     # This function calibrates the place of the game board
     def __calibrate_board(self):
@@ -436,38 +440,53 @@ class Robot:
         self.grab_piece()
 
         # Calibrate board positions
-        self.__move_to_pos(self.__board_ref)
-        for row in range(7):
-            self.__logger.info(f"Currently calibrating row {row}")
+        self.__move_to_pos(self.__BOARD_REF)
+        
+        # Ask the user to move the arm of the robot to the first row of the gameboard
+        self.__logger.info("Currently calibrating row 0")
+        self.__logger.info("Move the arm to the position 0 of the gameboard by freemotion")
+        self.__logger.info("Press enter to continue...")
+        input()
 
-            if row != 0:
-                self.__move_relative_linear([self.__board_move_rel, 0, 0, 0, 0, 0])
+        self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+
+        self.__board_first_pos = self.__execute_robot_action(
+            self.__arm.get_pose
+        )
+
+        self.__logger.info("Other row's positions will adjusted accordingly to the first row")
+
+        for row in range(6):
+            self.__logger.info(f"Currently calibrating row {(row+1)}")
+
+            self.__move_relative_linear([self.__BOARD_MOVE_REL_X, 0, 0, 0, 0, 0])
 
             with self.__slow_arm_control():
-                self.__move_relative_linear([0, 0, self.__board_move_rel, 0, 0, 0])
+                self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
 
                 # Wait for user confirmation
-                self.__logger.info("Waiting for you to adjust the game board, press enter to continue...")
+                self.__logger.info("Check if the row is aligned, press enter to continue...")
                 input()
 
-                self.__move_relative_linear([0, 0, -self.__board_move_rel, 0, 0, 0])
+                self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
 
         self.__move_to_home()
 
+        # Board calibration does not change the total amount pieces and the quantity of the pieces on the stack
         self.__current_stack_count += 1
         self.__current_piece_count += 1
 
         with self.__belt_lock:
             self.__logger.debug("Belt locked to place back the piece")
-            self.__move_to_pos(self.__index0_pick_pos if self.__current_stack_count==1 else self.__index1_pick_pos)
+            self.__move_to_pos(self.__INDEX0_PICK_POS if self.__current_stack_count==1 else self.__INDEX1_PICK_POS)
             self.__control_gripper(GripperAction.OPEN)
 
             self.__move_to_home()
 
-        self.__board_calibrated = True
-
     @contextmanager
     def __slow_arm_control(self, slow_speed=30):
+        self.__logger.info("Arm is moving slowly for precise action")
+        
         slow_arm = self.__arm
         self.__execute_robot_action(
             slow_arm.set_arm_max_velocity, slow_speed
