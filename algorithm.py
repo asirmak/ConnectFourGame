@@ -2,6 +2,7 @@
 
 from camera import Camera
 from robot import Robot
+from termcolor import colored
 
 
 class ConnectFour:
@@ -180,11 +181,11 @@ class ConnectFour:
         value = cases_dict[case]
         match value:
             case 1:
-                player_choice = input("1 Easy | 2 Medium | 3 Hard\n")
+                player_choice = input("1 Easy | 2 Medium | 3 Hard | 4 Impossible\n")
                 if player_choice == "":
                     return 2
                 player_choice = int(player_choice)
-                if player_choice < 1 or player_choice > 3:
+                if player_choice < 1 or player_choice > 4:
                     return self.get_player_input("DIFFICULTY")
                 return player_choice
             case 2:
@@ -229,7 +230,7 @@ class ConnectFour:
             else:
                 # Updating the board for the robot
                 # self.board = self.camera.get_board()
-                print("The AI is thinking...")
+                print(colored("The AI is thinking...", "cyan"))
                 connectFour.ai_play()
             self.turns += 1
 
