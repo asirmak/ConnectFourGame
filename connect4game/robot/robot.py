@@ -59,9 +59,7 @@ class Robot:
 
     def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
         # Logger for the robot
-        self.__logger = create_logger(
-            name="ROBOT"
-        )
+        self.__logger = create_logger(name="ROBOT")
 
         # Connect to robot
         try:
