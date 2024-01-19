@@ -1,8 +1,7 @@
 # The board is 6 height x 7 width
 
 from camera import Camera
-from robot import Robot
-from termcolor import colored
+from connect4game.robot import Robot
 
 
 class ConnectFour:
@@ -144,7 +143,7 @@ class ConnectFour:
                     best_val = move_val
 
         # Best move has been calculated, we ask the robot to place the coin
-        # self.robot.place_coin(best_col)
+        self.robot.drop_piece_to_board(best_col)
         self.place_coin(best_col, "YELLOW")
         # Return a value in the future for Robot
 
