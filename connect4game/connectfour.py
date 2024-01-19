@@ -9,7 +9,7 @@ class ConnectFour:
     def __init__(self):
         self.camera = Camera()
         self.robot = Robot()
-        self.board = [["." for _ in range(7)] for _ in range(6)]
+        self.board = [[0 for _ in range(7)] for _ in range(6)]
         self.depth = 3
         self.turns = 0
 
@@ -20,11 +20,11 @@ class ConnectFour:
 
     # Win conditions
     def is_full(self):
-        return all(cell != "." for row in self.board for cell in row)
+        return all(cell != 0 for row in self.board for cell in row)
 
     # Horizontal, vertical, and diagonal checks
     def check_win(self, player):
-        piece = "X" if player == "RED" else "O"
+        piece = 1 if player == "RED" else 2
 
         # Check horizontal locations
         for r in range(6):
@@ -122,10 +122,10 @@ class ConnectFour:
 
     def remove_coin(self, col):
         row = 0
-        while row < 6 and self.board[row][col] == ".":
+        while row < 6 and self.board[row][col] == 0:
             row += 1
         if row < 6:
-            self.board[row][col] = "."
+            self.board[row][col] = 0
 
     # Improved AI Play
     def ai_play(self):
@@ -154,7 +154,7 @@ class ConnectFour:
         if col == -1:
             return False
         bottom = 5
-        while bottom >= 0 and self.board[bottom][col] != ".":
+        while bottom >= 0 and self.board[bottom][col] != 0:
             bottom -= 1
         if bottom < 0:
             return False
@@ -167,13 +167,13 @@ class ConnectFour:
             raise ValueError("Column must be between 0 & 6")
         bottom = 5
 
-        while self.board[bottom][col] != ".":
+        while self.board[bottom][col] != 0:
             bottom -= 1
 
         if color == "RED":
-            self.board[bottom][col] = "X"
+            self.board[bottom][col] = 1
         else:
-            self.board[bottom][col] = "O"
+            self.board[bottom][col] = 2
 
     # Player choice
     def get_player_input(self, case):
