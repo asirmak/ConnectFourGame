@@ -1,5 +1,6 @@
 # The board is 6 height x 7 width
 
+from termcolor import colored
 from camera import Camera
 from connect4game.robot import Robot
 
