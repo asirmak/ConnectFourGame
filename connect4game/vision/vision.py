@@ -138,7 +138,12 @@ class Vision:
         self.__row_detection(image, 60, 120, 310, 365, 75, 4)
         self.__row_detection(image, 55, 120, 375, 430, 78, 5)
 
-        return np.flip(self.board_array, axis=1)
+        nparr = np.array(self.board_array)
+
+        return np.flip(nparr, axis=1)
+
+    def end_vision(self):
+        pass
 
 if __name__ == "__main__":
 

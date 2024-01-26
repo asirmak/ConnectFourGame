@@ -1,22 +1,23 @@
 # The board is 6 height x 7 width
-
-from termcolor import colored
-from camera import Camera
+from vision import Vision
 from connect4game.robot import Robot
+import numpy as np
+import time
 
 
 class ConnectFour:
     def __init__(self):
-        self.camera = Camera()
+        self.camera = Vision()
         self.robot = Robot()
+        self.robot.set_up_game(piece_count=21, rdy_piece=10, rdy_stack=0)
         self.board = [[0 for _ in range(7)] for _ in range(6)]
+        self.board = np.array(self.board)
         self.depth = 3
         self.turns = 0
 
     # Useful functions
     def display_board(self):
-        for row in self.board:
-            print(" ".join(row))
+        print(self.board)
 
     # Win conditions
     def is_full(self):
@@ -74,9 +75,9 @@ class ConnectFour:
 
     def evaluate(self):
         if self.check_win("RED"):
-            return -10
+            return 10000
         elif self.check_win("YELLOW"):
-            return 10
+            return -10000
         return 0
 
     # Minimax function
@@ -89,11 +90,11 @@ class ConnectFour:
             return score
 
         # If Yellow (AI) wins
-        if score == 10:
+        if score == 10000:
             return score
 
         # If Red (Player) wins
-        if score == -10:
+        if score == -10000:
             return score
 
         # If board is full, return 0
@@ -104,7 +105,7 @@ class ConnectFour:
             best = -1000
             for col in range(7):
                 if self.can_place_coin(col):
-                    self.place_coin(col, "YELLOW")
+                    self.place_coin(col, "RED")
                     best = max(best, self.minimax(depth + 1, not isMax))
                     # Undo move
                     self.remove_coin(col)
@@ -114,7 +115,7 @@ class ConnectFour:
             best = 1000
             for col in range(7):
                 if self.can_place_coin(col):
-                    self.place_coin(col, "RED")
+                    self.place_coin(col, "YELLOW")
                     best = min(best, self.minimax(depth + 1, not isMax))
                     # Undo move
                     self.remove_coin(col)
@@ -134,7 +135,7 @@ class ConnectFour:
 
         for col in range(7):
             if self.can_place_coin(col):
-                self.place_coin(col, "YELLOW")
+                self.place_coin(col, "RED")
                 move_val = self.minimax(0, False)
                 # Undo move
                 self.remove_coin(col)
@@ -145,7 +146,7 @@ class ConnectFour:
 
         # Best move has been calculated, we ask the robot to place the coin
         self.robot.drop_piece_to_board(best_col)
-        self.place_coin(best_col, "YELLOW")
+        self.place_coin(best_col, "RED")
         # Return a value in the future for Robot
 
         # Placing a coin and error handling
@@ -212,10 +213,10 @@ class ConnectFour:
     def play_game(self):
         for _ in range(42):
             connectFour.display_board()
-            if connectFour.check_win("RED"):
+            if connectFour.check_win("YELLOW"):
                 print("Player wins !")
                 break
-            if connectFour.check_win("YELLOW"):
+            if connectFour.check_win("RED"):
                 print("AI wins !")
                 break
             if connectFour.is_full():
@@ -223,19 +224,29 @@ class ConnectFour:
                 break
             # We decide the player starts playing first
             if self.turns % 2 == 0:
-                player_choice = -1
-                while connectFour.can_place_coin(player_choice) == False:
-                    player_choice = self.get_player_input("COIN")
-                connectFour.place_coin(player_choice, "RED")
+                # player_choice = -1
+                # while connectFour.can_place_coin(player_choice) == False:
+                #     player_choice = self.get_player_input("COIN")
+                # connectFour.place_coin(player_choice, "YELLOW")
+                print("Your turn!")
+                while True:
+                    time.sleep(5)
+                    current_board = self.camera.detect_game()
+                    if not np.array_equal(current_board, self.board):
+                        self.board = current_board
+                        break
             else:
                 # Updating the board for the robot
-                # self.board = self.camera.get_board()
-                print(colored("The AI is thinking...", "cyan"))
+                self.board = self.camera.detect_game()
+                print("The AI is thinking...")
                 connectFour.ai_play()
             self.turns += 1
 
 
 if __name__ == "__main__":
-    connectFour = ConnectFour()
-    connectFour.choose_difficulty()
-    connectFour.play_game()
+    try:
+        connectFour = ConnectFour()
+        connectFour.choose_difficulty()
+        connectFour.play_game()
+    finally:
+        connectFour.robot.end_robot()
