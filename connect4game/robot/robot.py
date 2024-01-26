@@ -144,6 +144,14 @@ class Robot:
         self.__current_piece_count = rdy_piece
         self.__current_stack_count = rdy_stack
 
+        # Move the belt if 2 piece stack is full
+        if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
+            self.__logger.info("Piece stack full moving pieces to the left")
+
+            self.__current_stack_count = 0
+            belt_action = threading.Thread(target=self.__move_pieces_on_belt, args=(ConveyorDirection.BACKWARD,))
+            belt_action.start()
+
         # Set up magazine if not already set up
         if not self.is_mag_rdy:
             self.__calibrate_mag()
@@ -242,6 +250,7 @@ class Robot:
         self.__logger.info(f"Trying to place the piece on game board row {index}")
 
         # Distance to the row in x axis from the first row
+        self.__move_to_pos(self.__BOARD_REF)
         current_rel = self.__BOARD_MOVE_REL_X * index
         row_pos = PoseObject(
             x=self.__board_first_pos.x + current_rel, y=self.__board_first_pos.y, z=self.__board_first_pos.z,
@@ -250,8 +259,6 @@ class Robot:
 
         # Move towards to the row
         self.__move_to_pos(row_pos)
-
-        time.sleep(1)
 
         # Get down to the row
         self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
@@ -347,8 +354,8 @@ class Robot:
 
         self.__logger.debug(
             "Moved relative to current position by "
-            f"x->{relative_arr[0]} y->{relative_arr[1]} z->{relative_arr[2]} "
-            f"roll->{relative_arr[3]} pitch->{relative_arr[4]} yaw->{relative_arr[5]}"
+            f"x->{'%.3f' % relative_arr[0]} y->{'%.3f' % relative_arr[1]} z->{'%.3f' % relative_arr[2]} "
+            f"roll->{'%.3f' % relative_arr[3]} pitch->{'%.3f' % relative_arr[4]} yaw->{'%.3f' % relative_arr[5]}"
         )
 
     def __move_joints(self, joint_list: list):
@@ -358,8 +365,8 @@ class Robot:
 
         self.__logger.debug(
             "Moved joints to "
-            f"Joint1->{joint_list[0]} Joint2->{joint_list[1]} Joint3->{joint_list[2]} "
-            f"Joint4->{joint_list[3]} Joint5->{joint_list[4]} Joint6->{joint_list[5]}"
+            f"Joint1->{'%.3f' % joint_list[0]} Joint2->{'%.3f' % joint_list[1]} Joint3->{'%.3f' % joint_list[2]} "
+            f"Joint4->{'%.3f' % joint_list[3]} Joint5->{'%.3f' % joint_list[4]} Joint6->{'%.3f' % joint_list[5]}"
         )
 
     # Function for restarting gripper in case of hardware error

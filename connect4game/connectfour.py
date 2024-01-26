@@ -1,15 +1,18 @@
 # The board is 6 height x 7 width
 from vision import Vision
 from connect4game.robot import Robot
+from connect4game.utils.logging import create_logger
 import numpy as np
 import time
+import argparse
 
 
 class ConnectFour:
-    def __init__(self):
+    def __init__(self, rdy_piece=0, rdy_stack=0):
+        self.__logger = create_logger("GAME")
         self.camera = Vision()
         self.robot = Robot()
-        self.robot.set_up_game(piece_count=21, rdy_piece=10, rdy_stack=0)
+        self.robot.set_up_game(piece_count=21, rdy_piece=rdy_piece, rdy_stack=rdy_stack)
         self.board = [[0 for _ in range(7)] for _ in range(6)]
         self.board = np.array(self.board)
         self.depth = 3
@@ -17,7 +20,13 @@ class ConnectFour:
 
     # Useful functions
     def display_board(self):
-        print(self.board)
+        self.__logger.info("Current game status:")
+        self.__logger.info(f"Row 1: {self.board[0]}")
+        self.__logger.info(f"Row 2: {self.board[1]}")
+        self.__logger.info(f"Row 3: {self.board[2]}")
+        self.__logger.info(f"Row 4: {self.board[3]}")
+        self.__logger.info(f"Row 5: {self.board[4]}")
+        self.__logger.info(f"Row 6: {self.board[5]}")
 
     # Win conditions
     def is_full(self):
@@ -154,12 +163,10 @@ class ConnectFour:
     def can_place_coin(self, col):
         if col == -1:
             return False
-        bottom = 5
-        while bottom >= 0 and self.board[bottom][col] != 0:
-            bottom -= 1
-        if bottom < 0:
-            return False
-        return True
+        for i in range(6):
+            if self.board[i][col] == 0:
+                return True
+        return False
 
     def place_coin(self, col, color):
         if color not in ["RED", "YELLOW"]:
@@ -182,7 +189,8 @@ class ConnectFour:
         value = cases_dict[case]
         match value:
             case 1:
-                player_choice = input("1 Easy | 2 Medium | 3 Hard | 4 Impossible\n")
+                self.__logger.info("1 Easy | 2 Medium | 3 Hard | 4 Impossible")
+                player_choice = input()
                 if player_choice == "":
                     return 2
                 player_choice = int(player_choice)
@@ -190,9 +198,8 @@ class ConnectFour:
                     return self.get_player_input("DIFFICULTY")
                 return player_choice
             case 2:
-                player_choice = input(
-                    "It is your turn ! Please choose a row to place your coin in.\n"
-                )
+                self.__logger.info("It is your turn ! Please choose a row to place your coin in.")
+                player_choice = input()
                 if (
                     player_choice == ""
                     or int(player_choice) < 1
@@ -205,7 +212,7 @@ class ConnectFour:
 
     # Game difficulty
     def choose_difficulty(self):
-        print("Choose your difficulty. No value will be medium by default.")
+        self.__logger.info("Choose your difficulty. No value will be medium by default.")
         player_choice = self.get_player_input("DIFFICULTY")
         self.depth = player_choice + 2
 
@@ -214,13 +221,13 @@ class ConnectFour:
         for _ in range(42):
             connectFour.display_board()
             if connectFour.check_win("YELLOW"):
-                print("Player wins !")
+                self.__logger.info("Player wins!")
                 break
             if connectFour.check_win("RED"):
-                print("AI wins !")
+                self.__logger.info("AI wins!")
                 break
             if connectFour.is_full():
-                print("It is a tie !")
+                self.__logger.info("It is a tie!")
                 break
             # We decide the player starts playing first
             if self.turns % 2 == 0:
@@ -228,9 +235,9 @@ class ConnectFour:
                 # while connectFour.can_place_coin(player_choice) == False:
                 #     player_choice = self.get_player_input("COIN")
                 # connectFour.place_coin(player_choice, "YELLOW")
-                print("Your turn!")
+                self.__logger.info("Your turn!")
                 while True:
-                    time.sleep(5)
+                    time.sleep(8)
                     current_board = self.camera.detect_game()
                     if not np.array_equal(current_board, self.board):
                         self.board = current_board
@@ -238,14 +245,30 @@ class ConnectFour:
             else:
                 # Updating the board for the robot
                 self.board = self.camera.detect_game()
-                print("The AI is thinking...")
+                self.__logger.info("AI is thinking...")
                 connectFour.ai_play()
             self.turns += 1
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--rdy_piece",
+        type=int,
+        default=0
+    )
+
+    parser.add_argument(
+        "--rdy_stack",
+        type=int,
+        default=0
+    )
+
+    args = parser.parse_args()
+
     try:
-        connectFour = ConnectFour()
+        connectFour = ConnectFour(rdy_piece=args.rdy_piece, rdy_stack=args.rdy_stack)
         connectFour.choose_difficulty()
         connectFour.play_game()
     finally:

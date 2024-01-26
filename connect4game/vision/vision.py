@@ -87,8 +87,8 @@ class Vision:
         for i in range(0, 7):
             x1 = param_x1 + (param_gap * i)
             x2 = param_x2 + (param_gap * i)
-            y1 = param_y1 - 10
-            y2 = param_y2 - 10
+            y1 = param_y1 - 20
+            y2 = param_y2 - 20
             if i == 0:
                 box_frame = image[y1:y2, x1:x2]
             else:
@@ -132,15 +132,24 @@ class Vision:
         self.image_rectangle = image
 
         self.__row_detection(image, 90, 150, 90, 135, 67, 0)
-        self.__row_detection(image, 90, 145, 140, 185, 67, 1)
-        self.__row_detection(image, 75, 135, 195, 245, 70, 2)
+        self.__row_detection(image, 100, 155, 140, 185, 67, 1)
+        self.__row_detection(image, 85, 145, 195, 245, 70, 2)
         self.__row_detection(image, 70, 130, 250, 300, 73, 3)
-        self.__row_detection(image, 60, 120, 310, 365, 75, 4)
+        self.__row_detection(image, 65, 125, 310, 365, 75, 4)
         self.__row_detection(image, 55, 120, 375, 430, 78, 5)
 
         nparr = np.array(self.board_array)
+        nparr = np.flip(nparr, axis=1)
 
-        return np.flip(nparr, axis=1)
+        self.__logger.info("Detection results:")
+        self.__logger.info(f"Row 1: {nparr[0]}")
+        self.__logger.info(f"Row 2: {nparr[1]}")
+        self.__logger.info(f"Row 3: {nparr[2]}")
+        self.__logger.info(f"Row 4: {nparr[3]}")
+        self.__logger.info(f"Row 5: {nparr[4]}")
+        self.__logger.info(f"Row 6: {nparr[5]}")
+
+        return nparr
 
     def end_vision(self):
         pass
@@ -152,11 +161,6 @@ if __name__ == "__main__":
     for i in range(5):
 
         board = vision.detect_game()
-
-        for i in range(6):
-            print(board[i])
-
-        print()
 
         flipped = vision.image_rectangle
         flipped = cv2.flip(flipped, 1)
