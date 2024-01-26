@@ -87,8 +87,8 @@ class Vision:
         for i in range(0, 7):
             x1 = param_x1 + (param_gap * i)
             x2 = param_x2 + (param_gap * i)
-            y1 = param_y1
-            y2 = param_y2
+            y1 = param_y1 - 10
+            y2 = param_y2 - 10
             if i == 0:
                 box_frame = image[y1:y2, x1:x2]
             else:
@@ -107,7 +107,7 @@ class Vision:
             # Drawing rectangle
             for pic, contour in enumerate(contours):
                 area = cv2.contourArea(contour)
-                if area > 200:  # Adjust this threshold according to your needs
+                if area > 0:  # Adjust this threshold according to your needs
                     self.image_rectangle = cv2.rectangle(self.image_rectangle, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     self.board_array[param_row_number][i] = 1
 
@@ -132,13 +132,13 @@ class Vision:
         self.image_rectangle = image
 
         self.__row_detection(image, 90, 150, 90, 135, 67, 0)
-        self.__row_detection(image, 85, 140, 140, 185, 67, 1)
+        self.__row_detection(image, 90, 145, 140, 185, 67, 1)
         self.__row_detection(image, 75, 135, 195, 245, 70, 2)
         self.__row_detection(image, 70, 130, 250, 300, 73, 3)
         self.__row_detection(image, 60, 120, 310, 365, 75, 4)
         self.__row_detection(image, 55, 120, 375, 430, 78, 5)
 
-        return self.board_array
+        return np.flip(self.board_array, axis=1)
 
 if __name__ == "__main__":
 
@@ -151,6 +151,11 @@ if __name__ == "__main__":
         for i in range(6):
             print(board[i])
 
-        cv2.imshow("frame", vision.image_rectangle)
+        print()
+
+        flipped = vision.image_rectangle
+        flipped = cv2.flip(flipped, 1)
+
+        cv2.imshow("frame", flipped)
         if cv2.waitKey(0) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
