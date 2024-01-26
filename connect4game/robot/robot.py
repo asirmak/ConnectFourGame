@@ -57,9 +57,12 @@ class Robot:
     __BOARD_MOVE_REL_X = -0.042
     __BOARD_MOVE_REL_Y = -0.050
 
-    def __init__(self, robot_ip = "169.254.200.200"): # if ip addr is argument not provided then use the ethernet port
+    def __init__(self, robot_ip = "169.254.200.200", simulation=False): # if ip addr is argument not provided then use the ethernet port
         # Logger for the robot
         self.__logger = create_logger(name="ROBOT")
+
+        if simulation:
+            self.__logger.info("Currently running in simulation mode")
 
         # Connect to robot
         try:
@@ -122,6 +125,8 @@ class Robot:
 
         # Stores the postiion of the first gameboard row
         self.__board_first_pos = None
+
+        self.__simulation = simulation
 
     # Returns the current total left pieces on the belt
     @property
@@ -258,6 +263,15 @@ class Robot:
         # Get up from the row
         self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
 
+        # Move Joint1 to avoid collision with the game board
+        current_joints = self.__execute_robot_action(
+            self.__arm.get_joints
+        )
+
+        current_joints[0] = 0.0
+
+        self.__move_joints(current_joints)
+
         self.__move_to_home()
 
     # Function to end the control instance, must be called at the end
@@ -331,10 +345,22 @@ class Robot:
         self.__execute_robot_action(
             self.__arm.move_linear_relative, relative_arr
         )
+
         self.__logger.debug(
             "Moved relative to current position by "
             f"x->{relative_arr[0]} y->{relative_arr[1]} z->{relative_arr[2]} "
             f"roll->{relative_arr[3]} pitch->{relative_arr[4]} yaw->{relative_arr[5]}"
+        )
+
+    def __move_joints(self, joint_list: list):
+        self.__execute_robot_action(
+            self.__arm.move_joints, joint_list
+        )
+
+        self.__logger.debug(
+            "Moved joints to "
+            f"Joint1->{joint_list[0]} Joint2->{joint_list[1]} Joint3->{joint_list[2]} "
+            f"Joint4->{joint_list[3]} Joint5->{joint_list[4]} Joint6->{joint_list[5]}"
         )
 
     # Function for restarting gripper in case of hardware error
@@ -416,19 +442,30 @@ class Robot:
     def __calibrate_mag(self):
         self.__move_to_pos(self.__MAG_PRE_POS)
 
-        with self.__slow_arm_control():
-            self.__logger.info("Move robot arm using freemove to the magazine")
-            self.__logger.info("Press enter to continue after the magazine is ready")
-            input()
+        if self.__simulation:
+            self.__logger.info("Mag position is constant while running in simulation")
 
-            # Save the shown magazine position
-            self.__mag_pos = self.__execute_robot_action(
-                self.__arm.get_pose
+            self.__mag_pos = PoseObject(
+                x=0.05, y=-0.232, z=0.15,
+                roll=-2.776, pitch=1.077, yaw=-2.773
             )
+            with self.__slow_arm_control():
+                self.__move_to_pos(self.__mag_pos)
+                self.__move_to_pos(self.__MAG_PRE_POS)
+        else:
+            with self.__slow_arm_control():
+                self.__logger.info("Move robot arm using freemove to the magazine")
+                self.__logger.info("Press enter to continue after the magazine is ready")
+                input()
 
-            self.__logger.info("Saved current magazine position")
+                # Save the shown magazine position
+                self.__mag_pos = self.__execute_robot_action(
+                    self.__arm.get_pose
+                )
 
-            self.__move_to_pos(self.__MAG_PRE_POS)
+                self.__logger.info("Saved current magazine position")
+
+                self.__move_to_pos(self.__MAG_PRE_POS)
 
         self.__move_to_home()
 
@@ -442,11 +479,16 @@ class Robot:
         
         # Ask the user to move the arm of the robot to the first row of the gameboard
         self.__logger.info("Currently calibrating row 0")
-        self.__logger.info("Move the arm to the position 0 of the gameboard by freemotion")
-        self.__logger.info("Press enter to continue...")
-        input()
 
-        self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+        if self.__simulation:
+            self.__logger.info("In simulation mode board position is constant")
+            self.__move_relative_linear([2 * -self.__BOARD_MOVE_REL_X, 0, 0, 0, 0, 0])
+        else:
+            self.__logger.info("Move the arm to the position 0 of the gameboard by freemotion")
+            self.__logger.info("Press enter to continue...")
+            input()
+
+            self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
 
         self.__board_first_pos = self.__execute_robot_action(
             self.__arm.get_pose
@@ -462,11 +504,21 @@ class Robot:
             with self.__slow_arm_control():
                 self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
 
-                # Wait for user confirmation
-                self.__logger.info("Check if the row is aligned, press enter to continue...")
-                input()
+                if not self.__simulation:
+                    # Wait for user confirmation
+                    self.__logger.info("Check if the row is aligned, press enter to continue...")
+                    input()
 
                 self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+
+        # Move only Joint1 to avoid collision with the game board
+        current_joints = self.__execute_robot_action(
+            self.__arm.get_joints
+        )
+
+        current_joints[0] = 0.0
+
+        self.__move_joints(current_joints)
 
         self.__move_to_home()
 
