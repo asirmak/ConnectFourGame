@@ -3,7 +3,7 @@ import time
 from contextlib import contextmanager
 from random import randrange
 
-from enums import GripperAction
+from .enums import GripperAction
 from pyniryo import NiryoRobot as OldAPI
 from pyniryo2 import ConveyorDirection, NiryoRobot, PoseObject
 from roslibpy.core import RosTimeoutError
@@ -32,19 +32,11 @@ class Robot:
         x=0.125, y=0.0, z=0.152,
         roll=0.0, pitch=1.55, yaw=0
     )
-    __INDEX0_PICK_POS = PoseObject(
-        x=0.136, y=0.0, z=0.152,
-        roll=0.0, pitch=1.55, yaw=0.0
-    )
 
     # Location of the piece at index 1 on the belt (far side)
     __INDEX1_DROP_POS = PoseObject(
         x=0.186, y=0.0, z=0.15,
         roll=0.0, pitch=1.55, yaw=0
-    )
-    __INDEX1_PICK_POS = PoseObject(
-        x=0.196, y=0.0, z=0.15,
-        roll=0.0, pitch=1.55, yaw=0.0
     )
 
     # Board ref position to set up the game board
@@ -148,7 +140,10 @@ class Robot:
 
     # Sets up the game, should be called before a game starts
     # This function makes sure that all pieces are ready on the belt, magazine is ready and the game board is calibrated
-    def set_up_game(self, piece_count=21):
+    def set_up_game(self, piece_count=21, rdy_piece=0, rdy_stack=0):
+        self.__current_piece_count = rdy_piece
+        self.__current_stack_count = rdy_stack
+
         # Set up magazine if not already set up
         if not self.is_mag_rdy:
             self.__calibrate_mag()
@@ -176,6 +171,10 @@ class Robot:
 
             self.__move_to_home()
 
+            # With the first piece calibrate the gameboard
+            if not self.is_board_rdy:
+                self.__calibrate_board()
+
             # Acquire belt control to place the piece
             with self.__belt_lock:
                 self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
@@ -189,10 +188,6 @@ class Robot:
                 self.__move_to_home()
 
                 self.__logger.debug(f"Belt lock removed by thread {threading.get_ident()}")
-
-            # With the first piece calibrate the gameboard
-            if not self.is_board_rdy:
-                self.__calibrate_board()
 
             # Move the belt if 2 piece stack is full
             if self.__current_stack_count == 2 and (self.__current_piece_count != piece_count):
@@ -215,7 +210,7 @@ class Robot:
         with self.__belt_lock:
             self.__logger.debug(f"Belt locked by thread {threading.get_ident()}")
 
-            self.__move_to_pos(self.__INDEX0_PICK_POS if self.__current_stack_count==1 else self.__INDEX1_PICK_POS)
+            self.__move_to_pos(self.__INDEX0_DROP_POS if self.__current_stack_count==1 else self.__INDEX1_DROP_POS)
             self.__control_gripper(GripperAction.CLOSE)
             self.__move_to_home()
             self.__current_stack_count -= 1
@@ -238,6 +233,8 @@ class Robot:
 
     # Drop the piece to the specified lane starting from 0 upto 6
     def drop_piece_to_board(self, index):
+        self.grab_piece()
+
         if index > 6 or index < 0:
             self.__logger.error(f"Index {index} is an invalid position for the game board. Use a value between 0-6")
             raise IndexError("Use a value between 0-6")
@@ -253,6 +250,8 @@ class Robot:
 
         # Move towards to the row
         self.__move_to_pos(row_pos)
+
+        time.sleep(1)
 
         # Get down to the row
         self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
@@ -471,9 +470,6 @@ class Robot:
 
     # This function calibrates the place of the game board
     def __calibrate_board(self):
-        # Grab the first piece for calibration
-        self.grab_piece()
-
         # Calibrate board positions
         self.__move_to_pos(self.__BOARD_REF)
         
@@ -521,17 +517,6 @@ class Robot:
         self.__move_joints(current_joints)
 
         self.__move_to_home()
-
-        # Board calibration does not change the total amount pieces and the quantity of the pieces on the stack
-        self.__current_stack_count += 1
-        self.__current_piece_count += 1
-
-        with self.__belt_lock:
-            self.__logger.debug("Belt locked to place back the piece")
-            self.__move_to_pos(self.__INDEX0_PICK_POS if self.__current_stack_count==1 else self.__INDEX1_PICK_POS)
-            self.__control_gripper(GripperAction.OPEN)
-
-            self.__move_to_home()
 
     @contextmanager
     def __slow_arm_control(self, slow_speed=30):
