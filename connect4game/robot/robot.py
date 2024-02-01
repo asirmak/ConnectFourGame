@@ -47,7 +47,7 @@ class Robot:
     )
     # Constants for moving linearly on the x and y axises of the gameboard rows
     __BOARD_MOVE_REL_X = -0.042
-    __BOARD_MOVE_REL_Y = -0.050
+    __BOARD_MOVE_REL_Z = -0.050
 
     def __init__(self, robot_ip = "169.254.200.200", simulation=False): # if ip addr is argument not provided then use the ethernet port
         # Logger for the robot
@@ -261,13 +261,13 @@ class Robot:
         self.__move_to_pos(row_pos)
 
         # Get down to the row
-        self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+        self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Z, 0, 0, 0])
 
         # Drop the piece to the row
         self.__control_gripper(GripperAction.OPEN)
 
         # Get up from the row
-        self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+        self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Z, 0, 0, 0])
 
         # Move Joint1 to avoid collision with the game board
         current_joints = self.__execute_robot_action(
@@ -491,7 +491,7 @@ class Robot:
             self.__logger.info("Press enter to continue...")
             input()
 
-            self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+            self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Z, 0, 0, 0])
 
         self.__board_first_pos = self.__execute_robot_action(
             self.__arm.get_pose
@@ -505,14 +505,14 @@ class Robot:
             self.__move_relative_linear([self.__BOARD_MOVE_REL_X, 0, 0, 0, 0, 0])
 
             with self.__slow_arm_control():
-                self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+                self.__move_relative_linear([0, 0, self.__BOARD_MOVE_REL_Z, 0, 0, 0])
 
                 if not self.__simulation:
                     # Wait for user confirmation
                     self.__logger.info("Check if the row is aligned, press enter to continue...")
                     input()
 
-                self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Y, 0, 0, 0])
+                self.__move_relative_linear([0, 0, -self.__BOARD_MOVE_REL_Z, 0, 0, 0])
 
         # Move only Joint1 to avoid collision with the game board
         current_joints = self.__execute_robot_action(
