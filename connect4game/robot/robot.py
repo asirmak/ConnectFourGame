@@ -481,7 +481,7 @@ class Robot:
         self.__move_to_pos(self.__BOARD_REF)
         
         # Ask the user to move the arm of the robot to the first row of the gameboard
-        self.__logger.info("Currently calibrating row 0")
+        self.__logger.info("Currently calibrating column 0")
 
         if self.__simulation:
             self.__logger.info("In simulation mode board position is constant")
@@ -500,7 +500,7 @@ class Robot:
         self.__logger.info("Other row's positions will adjusted accordingly to the first row")
 
         for row in range(6):
-            self.__logger.info(f"Currently calibrating row {(row+1)}")
+            self.__logger.info(f"Currently calibrating column {(row+1)}")
 
             self.__move_relative_linear([self.__BOARD_MOVE_REL_X, 0, 0, 0, 0, 0])
 
