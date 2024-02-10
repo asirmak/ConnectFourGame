@@ -19,6 +19,7 @@ pyasn1-modules==0.3.0
 pycparser==2.21
 cmake
 scikit-build
+pyniryo==1.1.2
 pyniryo2==1.0.0
 pyOpenSSL==23.3.0
 pytest==7.4.3
